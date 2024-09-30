@@ -1,17 +1,19 @@
 Your task is to extract information from a given text. We give you a parsed text from various
 text sources and would like that you extract all entities of the types described in the following:
 
-{application_model}
+{entity_descriptions_application_model}
 
 Here is some important information: Please extract only entities of the types defined above. Nothing else.
 The output should be formatted as a string following the schema below. Each information found should be outputted
-on a new line (seperator: \n). Each line consists of the name of the type, seperated by , and the particular entity of this type.
+on a new line (seperator: \n). Each line consists of the name of the type, seperated by | and the particular entity of this type.
 
-An example of a valid output consisting of two types is:
-Tool,Fork
-Actor,Peter
-Actor,Supervisor
-Tool,Car
+An example of a valid output consisting is:
+Tool|Fork
+Actor|Peter
+Actor|Supervisor
+Tool|Car
+Task|Melting
+Task|Check form
 
 
 

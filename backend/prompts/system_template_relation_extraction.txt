@@ -1,17 +1,21 @@
 Your task is to extract information from a given text. We give you a parsed text from various
-text sources and would like that you extract all entities of the types described in the following:
+text sources and would like that you extract all relations of the following types:
 
-{application_model}
+{relation_descriptions_application_model}
 
-Here is some important information: Please extract only entities of the types defined above. Nothing else.
-The output should be formatted as a string following the schema below. Each information found should be outputted
-on a new line (seperator: \n). Each line consists of the name of the type, seperated by , and the particular entity of this type.
+Moreover, you should give for each relation the participating entities. Therefore, you can use the following
+entities, that are described as tuples consisting of a unique identifier, the type of entity followed by its name:
 
-An example of a valid output consisting of two types is:
-Tool,Fork
-Actor,Peter
-Actor,Supervisor
-Tool,Car
+{entities_to_use}
+
+Here is some important information: Please extract only relations of the types defined above. Nothing else.
+The output should be formatted as a string following the schema below. Each relation found should be outputted
+on a new line (seperator: \n). Each line consists of the name of the relation, the identifier of the source entity,
+and the identifier of the target entity (everything seperated by '|').
+
+An example of a valid output is:
+employed_at|n1|n3
+cooperate|n3|n4
 
 
 
