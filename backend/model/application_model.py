@@ -24,6 +24,12 @@ class ApplicationModel:
     def get_type_aspect_mapping(self) -> typing.Dict[str, str]:
         return {e.name: e.aspect.name for e in self.entities}
 
+    def to_dict(self) -> dict:
+        return {
+            "entities": [e.to_dict() for e in self.entities],
+            "relations": [r.to_dict() for r in self.relations],
+        }
+
 
 def get_dummy_application_model() -> ApplicationModel:
     return ApplicationModel(
