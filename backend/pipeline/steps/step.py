@@ -1,20 +1,14 @@
 import dataclasses
 import typing
-import os
-import langchain.prompts as lc_prompts
-import api_key
-
-from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.exceptions import OutputParserException
-from langchain_core.output_parsers import BaseOutputParser
 from abc import ABC
 
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+
+import api_key
 from model.application_model import ApplicationModel
-from model.meta_model import Entity
-from pipeline.llm_models import Models, ModelInformation
+from pipeline.llm_models import ModelInformation
 from pipeline.steps.utils import ParsedFile
 
 
@@ -66,7 +60,6 @@ class PromptCreation(BasePipelineStep):
                                        type_aspect_mapping: typing.Dict[str, str]) -> typing.List[EntityResult]:
         result_list = []
         lines = result.splitlines()
-
 
         for i, line in enumerate(lines):
             result_type, name = line.split('|')
@@ -134,7 +127,6 @@ class PromptCreation(BasePipelineStep):
             chain.invoke({"relation_descriptions_application_model": relation_descriptions,
                           "entities_to_use": formatted_entities_to_use,
                           "text": parsed_file}))
-
 
     def run(self, model: ModelInformation,
             application_model: ApplicationModel,
