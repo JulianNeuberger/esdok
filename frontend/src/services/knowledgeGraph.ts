@@ -6,8 +6,8 @@ export interface KnowledgeGraphNode {
 
 export interface KnowledgeGraphEdge {
     id: string;
-    sourceId: string;
-    targetId: string;
+    source: string;
+    target: string;
     name?: string;
 }
 
@@ -22,8 +22,18 @@ export class KnowledgeGraphService {
 
     }
 
-    public load = async (): Promise<KnowledgeGraph> => {
-        return {
+    public load = async (): Promise<KnowledgeGraph | undefined> => {
+        const response = await fetch(" http://127.0.0.1:5000/graph/");
+        const json = await response.json();
+        if(!Object.hasOwn(json, "nodes")) {
+            return undefined;
+        }
+        if(!Object.hasOwn(json, "edges")) {
+            return undefined;
+        }
+        return json
+
+        /*return {
             nodes: [
                 {id: "n1", name: "Martin K.", aspect: "organizational"},
                 {id: "n2", name: "Julian N.", aspect: "organizational"},
@@ -37,6 +47,6 @@ export class KnowledgeGraphService {
                 {id: "e3", sourceId: "n5", targetId: "n4", name: "employed at"},
                 {id: "e4", sourceId: "n3", targetId: "n4", name: "cooperate"},
             ],
-        }
+        }*/
     }
 }

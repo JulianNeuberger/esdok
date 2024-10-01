@@ -34,7 +34,9 @@ export const toHex = (r: number, g: number, b: number): string => {
     return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
 }
 
-export const randomColorScheme = () => {
+export type ColorSet = {backgroundColor: string, textColor: string};
+
+export const randomColorSet = (): ColorSet => {
     const hue = Math.random();
     const [textR, textG, textB] = hsvToRgb(hue, .8, .4);
     const [backR, backG, backB] = hsvToRgb(hue, .3, .9);
@@ -42,4 +44,14 @@ export const randomColorScheme = () => {
         "textColor": toHex(textR, textG, textB),
         "backgroundColor": toHex(backR, backG, backB)
     }
+}
+
+export const randomColorScheme = (keys: string[]): {[key: string]: ColorSet} => {
+    const scheme: {[key: string]: ColorSet} = {}
+
+    keys.forEach(k => {
+        scheme[k] = randomColorSet();
+    });
+
+    return scheme;
 }
