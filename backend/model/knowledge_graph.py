@@ -1,5 +1,7 @@
 import dataclasses
+import json
 import typing
+from pathlib import Path
 
 from model import match
 
@@ -72,6 +74,17 @@ class Graph:
             nodes=[Node.from_dict(n) for n in d["nodes"]],
             edges=[Edge.from_dict(e) for e in d["edges"]],
         )
+
+    @staticmethod
+    def load(file_path: typing.Union[str, Path]) -> "Graph":
+        with open(file_path) as f:
+            graph_json = json.load(f)
+            graph = Graph.from_dict(graph_json)
+            return graph
+
+    def save(self, file_path: typing.Union[str, Path]) -> None:
+        with open(file_path, "w") as f:
+            json.dump(self.to_dict(), f)
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
