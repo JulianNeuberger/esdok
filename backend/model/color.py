@@ -8,12 +8,11 @@ class Color:
     _r: int = field(init=False, repr=False)
     _g: int = field(init=False, repr=False)
     _b: int = field(init=False, repr=False)
-    _hex: str = field(init=False, repr=False)
+    _hex_value: str = field(init=False, repr=False)
 
     r: int
     g: int
     b: int
-    hex: str = field(init=False)
 
     def __post_init__(self):
         self.rgb = (self.r, self.g, self.b)
@@ -25,16 +24,16 @@ class Color:
     @rgb.setter
     def rgb(self, values):
         self._r, self._g, self._b = values
-        self._hex = self._rgb_to_hex(self._r, self._g, self._b)
+        self._hex_value = self._rgb_to_hex(self._r, self._g, self._b)
 
     @property
     def hex(self):
-        return self._hex
+        return self._hex_value
 
     @hex.setter
     def hex(self, value):
-        self._hex = value
-        self._r, self._g, self._b = self._hex_to_rgb(self._hex)
+        self._hex_value = value
+        self._r, self._g, self._b = self._hex_to_rgb(self._hex_value)
 
     def _rgb_to_hex(self, r: int, g: int, b: int) -> str:
         return f'#{r:02x}{g:02x}{b:02x}'.upper()
@@ -48,7 +47,7 @@ class Color:
             "r": self._r,
             "g": self._g,
             "b": self._b,
-            "hex": self._hex
+            "hex": self._hex_value
         }
 
     @staticmethod
