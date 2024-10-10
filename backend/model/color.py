@@ -43,6 +43,21 @@ class Color:
         hex_value = hex_value.lstrip('#')
         return tuple(int(hex_value[i:i + 2], 16) for i in (0, 2, 4))
 
+    def to_dict(self):
+        return {
+            "r": self._r,
+            "g": self._g,
+            "b": self._b,
+            "hex": self._hex
+        }
+
+    @staticmethod
+    def from_dict(d: dict):
+        return Color(
+            r=d["r"],
+            g=d["g"],
+            b=d["b"]
+        )
 
 
 class CommonColors(Enum):

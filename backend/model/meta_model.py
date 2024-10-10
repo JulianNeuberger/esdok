@@ -33,8 +33,8 @@ class Aspect:
     def to_dict(self):
         return {
             "name": self.name,
-            "text_color": self.text_color,
-            "shape_color": self.shape_color,
+            "text_color": self.text_color.to_dict(),
+            "shape_color": self.shape_color.to_dict(),
             "shape": self.shape.value
         }
 
@@ -42,8 +42,8 @@ class Aspect:
     def from_dict(d: dict):
         return Aspect(
             name=d["name"],
-            text_color=d["text_color"],
-            shape_color=d["shape_color"],
+            text_color=Color.from_dict(d["text_color"]),
+            shape_color=Color.from_dict(d["shape_color"]),
             shape=d["shape"]
         )
 
