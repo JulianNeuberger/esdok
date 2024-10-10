@@ -31,7 +31,9 @@ export class KnowledgeGraphService {
     }
 
     public load = async (): Promise<KnowledgeGraph | undefined> => {
-        const response = await fetch(" http://127.0.0.1:5000/graph/");
+        const response = await fetch(" http://127.0.0.1:5000/graph/", {
+            method: "GET"
+        });
         const json = await response.json();
         if(!Object.hasOwn(json, "nodes")) {
             return undefined;
@@ -53,5 +55,11 @@ export class KnowledgeGraphService {
 
         const json = await response.json();
         return json["success"];
+    }
+
+    public delete = async () => {
+        await fetch("http://127.0.0.1:5000/graph/", {
+            method: "DELETE"
+        });
     }
 }

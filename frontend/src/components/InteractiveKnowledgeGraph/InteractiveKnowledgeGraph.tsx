@@ -4,9 +4,9 @@ import {KnowledgeGraphService} from "../../services/knowledgeGraph";
 
 import '@xyflow/react/dist/style.css';
 import {randomColorScheme, randomColorSet} from "../../services/colors";
-import {Button, Input, Spin} from "antd";
+import {Button, Input, Popconfirm, Spin} from "antd";
 import Dragger from "antd/es/upload/Dragger";
-import {InboxOutlined} from "@ant-design/icons";
+import {DeleteOutlined, InboxOutlined} from "@ant-design/icons";
 
 const InteractiveKnowledgeGraph = () => {
     const [isLoading, setIsLoading] = React.useState(false);
@@ -193,6 +193,17 @@ const InteractiveKnowledgeGraph = () => {
             <div style={{width: 250, position: "absolute", top: 5, right: 5, zIndex: 10}}>
                 {renderSearch()}
                 {renderFileUpload()}
+                {
+                    <Popconfirm
+                        title={"Delete knowledge graph"}
+                        description={"This will remove the knowledge graph entirely, are you sure?"}
+                        onConfirm={async () => {
+                            await knowledgeGraphService.delete();
+                            await load();
+                        }}
+                    >
+                        <Button danger icon={<DeleteOutlined />}>Delete</Button>
+                    </Popconfirm>}
             </div>
             {renderFlow()}
         </div>

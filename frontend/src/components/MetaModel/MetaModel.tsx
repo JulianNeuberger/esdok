@@ -1,11 +1,13 @@
 import React from "react";
-import {addEdge, Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesState} from "@xyflow/react";
+import {Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesState} from "@xyflow/react";
 import {Aspect, Entity, MetaModelService, Relation} from "../../services/metaModelService";
-import {Button, Form, Input, Select, Spin} from "antd";
+import {Button, Spin} from "antd";
 import EntityInput from "../EntityInput/EntityInput";
 import RelationInput from "../RelationInput/RelationInput";
 import MetaModelEdge from "../MetaModelEdge/MetaModelEdge";
 import MetaModelNode from "../MetaModelNode/MetaModelNode";
+import Dragger from "antd/es/upload/Dragger";
+import {InboxOutlined} from "@ant-design/icons";
 
 
 const MetaModel = () => {
@@ -17,6 +19,7 @@ const MetaModel = () => {
     const [aspects, setAspects] = React.useState<Aspect[]>([]);
     const [newEntity, setNewEntity] = React.useState<Partial<Entity>>({});
     const [newRelation, setNewRelation] = React.useState<Partial<Relation>>({});
+    const [umletinoFile, setUmletinoFile] = React.useState<File | undefined>();
 
     const metaModelService = new MetaModelService();
 
@@ -32,10 +35,6 @@ const MetaModel = () => {
         };
     }, []);
 
-    const onConnect = React.useCallback(
-        (params: any) => setEdges((eds) => addEdge(params, eds)),
-        [setEdges],
-    );
     const load = async () => {
         setIsLoading(true);
         let modelData;
@@ -156,9 +155,49 @@ const MetaModel = () => {
         );
     }
 
+    const renderFileUpload = () => {
+        return (
+            <>
+                <Dragger
+                    beforeUpload={(file) => {
+                        setUmletinoFile(file);
+                        return false;
+                    }}
+                >
+                    <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                    </p>
+                    <p className="ant-upload-text">Extract graph from file</p>
+                    <p className="ant-upload-hint">
+                        Drag and drop a UMLetino file here to extract a meta model.
+                    </p>
+                </Dragger>
+                <Button
+                    type={"primary"}
+                    disabled={!umletinoFile}
+                    onClick={async () => {
+                        if(!umletinoFile) {
+                            console.error("No file set, this should not happen.");
+                            return;
+                        }
+                        const file = umletinoFile;
+                        setUmletinoFile(undefined);
+                        await metaModelService.extract(file);
+                        await load();
+                    }}
+                >
+                    Extract
+                </Button>
+            </>
+        );
+    }
+
     const renderNewNodeModal = () => {
         return (
             <div style={{position: "absolute", top: 5, right: 5, width: 250, }}>
+                <div>
+                    {renderFileUpload()}
+                </div>
                 <div style={{borderRadius: 3, border: "solid 1px black", padding: "5px 15px", backgroundColor: "white", marginBottom: 25}}>
                     <EntityInput
                         aspects={aspects}

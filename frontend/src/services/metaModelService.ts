@@ -72,4 +72,17 @@ export class MetaModelService {
         }
         return json;
     }
+
+    public extract = async (file: File): Promise<boolean> => {
+        const data = new FormData();
+        data.append("file", file);
+
+        const response = await fetch(" http://127.0.0.1:5000/model/extract", {
+            method: "POST",
+            body: data
+        });
+
+        const json = await response.json();
+        return json["success"];
+    }
 }
