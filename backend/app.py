@@ -8,6 +8,7 @@ from flask_cors import CORS
 
 from model.application_model import get_dummy_application_model
 from model.meta_model import Entity, Relation
+from parser.parse import parse_xml_file
 from pipeline.llm_models import Models
 from pipeline.steps.file_loader import FileLoader
 from pipeline.steps.step import PromptCreation
@@ -53,6 +54,20 @@ def extract_knowledge_graph():
 
     with open(results_file_path, 'w', encoding='utf8') as f:
         json.dump(results, f, indent=4)
+
+    return {
+        "success": True
+    }
+
+
+@app.route('/model/', methods=['POST'])
+def import_meta_model():
+    # todo: send file to backed
+    file = request.files["file"]
+    application_model = parse_xml_file(file)
+
+    with open(results_file_path, 'w', encoding='utf8') as f:
+        json.dump(application_model.to_dict(), f, indent=4)
 
     return {
         "success": True
