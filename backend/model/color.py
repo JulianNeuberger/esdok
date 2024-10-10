@@ -13,7 +13,6 @@ class Color:
     r: int
     g: int
     b: int
-    hex: str = field(init=False)
 
     def __post_init__(self):
         self.rgb = (self.r, self.g, self.b)
@@ -37,27 +36,18 @@ class Color:
         self._r, self._g, self._b = self._hex_to_rgb(self._hex)
 
     def _rgb_to_hex(self, r: int, g: int, b: int) -> str:
-        return f'#{r:02x}{g:02x}{b:02x}'.upper()
+        return f"#{r:02x}{g:02x}{b:02x}".upper()
 
     def _hex_to_rgb(self, hex_value: str):
-        hex_value = hex_value.lstrip('#')
-        return tuple(int(hex_value[i:i + 2], 16) for i in (0, 2, 4))
+        hex_value = hex_value.lstrip("#")
+        return tuple(int(hex_value[i : i + 2], 16) for i in (0, 2, 4))
 
     def to_dict(self):
-        return {
-            "r": self._r,
-            "g": self._g,
-            "b": self._b,
-            "hex": self._hex
-        }
+        return {"r": self._r, "g": self._g, "b": self._b, "hex": self._hex}
 
     @staticmethod
     def from_dict(d: dict):
-        return Color(
-            r=d["r"],
-            g=d["g"],
-            b=d["b"]
-        )
+        return Color(r=d["r"], g=d["g"], b=d["b"])
 
 
 class CommonColors(Enum):

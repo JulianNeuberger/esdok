@@ -35,24 +35,21 @@ const InteractiveKnowledgeGraph = () => {
             return;
         }
         const aspects = [...new Set(backendData.nodes.map(n => n.aspect))];
-        const colorScheme = randomColorScheme(aspects);
+        const colorScheme = randomColorScheme(aspects.map(a => a.name));
         setEdges(backendData.edges.map(e => {
-            console.log(e)
             return {
                 id: e.id,
-                source: e.source,
-                target: e.target,
-                label: e.name
+                source: e.source.id,
+                target: e.target.id,
+                label: e.type
             };
         }));
         setNodes(backendData.nodes.map(n => {
-            const {textColor, backgroundColor} = colorScheme[n.aspect];
+            const {textColor, backgroundColor} = colorScheme[n.aspect.name];
             console.log(n)
             return {
                 id: n.id,
-                position: {
-                    x: Math.random() * 1500, y: Math.random() * 1500
-                },
+                position: n.position,
                 data: {
                     label: n.name,
                 },

@@ -3,8 +3,6 @@ import json
 import typing
 from pathlib import Path
 
-from model import match
-
 
 @dataclasses.dataclass(frozen=True)
 class Graph:
@@ -14,14 +12,9 @@ class Graph:
     def merge(
         self,
         other: "Graph",
-        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]] = None,
-        match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]] = None,
+        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]],
+        match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]],
     ) -> "Graph":
-        if match_edge is None:
-            match_edge = match.strict_edge_matcher
-        if match_node is None:
-            match_node = match.node_similarity_matcher(similarity_threshold=0.8)
-
         # copy lists, elements are immutable
         new_nodes = [n for n in self.nodes]
         new_edges = [e for e in self.edges]
@@ -34,6 +27,7 @@ class Graph:
                     # found a matching node, record the mapping
                     has_match = True
                     node_mappings[other_node] = self_node
+                    print(f"Merging node {self_node.name} and node {other_node.name}")
                     break
 
             if not has_match:

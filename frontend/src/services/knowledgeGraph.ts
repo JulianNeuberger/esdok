@@ -1,19 +1,27 @@
-export interface KnowledgeGraphNode {
-    id: string;
+interface Aspect {
     name: string;
-    aspect: string;
+    shape: string;
+    color: string;
 }
 
-export interface KnowledgeGraphEdge {
+export interface Node {
     id: string;
-    source: string;
-    target: string;
-    name?: string;
+    name: string;
+    type: string;
+    aspect: Aspect;
+    position: {x: number, y: number};
+}
+
+export interface Edge {
+    id: string;
+    type: string;
+    source: Node;
+    target: Node;
 }
 
 export interface KnowledgeGraph {
-    nodes: KnowledgeGraphNode[];
-    edges: KnowledgeGraphEdge[];
+    nodes: Node[];
+    edges: Edge[];
 }
 
 export class KnowledgeGraphService {

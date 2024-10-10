@@ -1,6 +1,7 @@
 import dataclasses
 import random
 import typing
+import uuid
 from abc import ABC
 
 from langchain_core.output_parsers import StrOutputParser
@@ -78,12 +79,20 @@ class PromptCreation(BasePipelineStep):
 
     @staticmethod
     def parse_relation_extraction_result(result: str) -> typing.List[RelationResult]:
-        print(result)
         result_list = []
         lines = result.splitlines()
 
         for i, line in enumerate(lines):
-            name, source, target = line.split("|")
+            if "|" not in line:
+                print(f"Skipping line '{line}', missing separator pipe")
+                continue
+
+            line_values = line.split("|")
+            if len(line_values) != 3:
+                print(f"Skipping line '{line}', not enough values")
+                continue
+
+            name, source, target = line_values
             result = RelationResult(id=f"e{i}", source=source, target=target, name=name)
             result_list.append(result)
 
@@ -146,7 +155,6 @@ class PromptCreation(BasePipelineStep):
                 + f"({entity.id}, {entity.type}, {entity.name})\n"
             )
 
-        print(formatted_entities_to_use)
         parser = StrOutputParser()
 
         chain = prompt_template | model | parser
@@ -193,6 +201,7 @@ class PromptCreation(BasePipelineStep):
                 )
 
             nodes[e.id] = kg.Node(
+                id=str(uuid.uuid4()),
                 name=e.name,
                 type=e.type,
                 position=(random.random() * 500, random.random() * 500),
@@ -203,6 +212,7 @@ class PromptCreation(BasePipelineStep):
         for r in extracted_relations:
             edges.append(
                 kg.Edge(
+                    id=str(uuid.uuid4()),
                     type=r.name,
                     source=nodes[r.source],
                     target=nodes[r.target],

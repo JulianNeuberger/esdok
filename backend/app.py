@@ -6,6 +6,7 @@ from flask import Flask, request
 from flask_cors import CORS
 
 import model.knowledge_graph as kg
+from model import match
 from model.application_model import get_dummy_application_model
 from model.meta_model import Entity, Relation
 from pipeline.llm_models import Models
@@ -25,7 +26,7 @@ results_file_path = (
 def load_knowledge_graph():
     if not os.path.isfile(results_file_path):
         flask.abort(404)
-    return kg.Graph.load(results_file_path)
+    return kg.Graph.load(results_file_path).to_dict()
 
 
 @app.route("/graph/", methods=["DELETE"])
@@ -44,10 +45,10 @@ def extract_knowledge_graph():
 
     with open("file.pdf", "wb") as f:
         file.save(f)
-        parsed_files = loading_step.run([f.name])
-        if len(parsed_files) != 1:
-            raise AssertionError("Parsing failed")
-        file_content = parsed_files[0]
+    parsed_files = loading_step.run(["file.pdf"])
+    if len(parsed_files) != 1:
+        raise AssertionError("Parsing failed")
+    file_content = parsed_files[0]
 
     prompt_step = PromptCreation()
     graph = prompt_step.run(
@@ -59,10 +60,14 @@ def extract_knowledge_graph():
     if os.path.isfile(results_file_path):
         existing_graph = kg.Graph.load(results_file_path)
         existing_graph.save(str(results_file_path) + ".bkp")
-        graph = existing_graph.merge(graph)
+        graph = existing_graph.merge(
+            graph,
+            match_edge=match.strict_edge_matcher,
+            match_node=match.node_similarity_matcher(similarity_threshold=0.8),
+        )
 
     graph.save(results_file_path)
-    return {"success": True, "graph": graph}
+    return {"success": True, "graph": graph.to_dict()}
 
 
 @app.route("/model/", methods=["GET"])
