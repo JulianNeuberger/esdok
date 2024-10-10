@@ -33,18 +33,18 @@ class Aspect:
     def to_dict(self):
         return {
             "name": self.name,
-            "text_color": self.text_color.to_dict(),
-            "shape_color": self.shape_color.to_dict(),
-            "shape": self.shape.value
+            "textColor": self.text_color.to_dict(),
+            "shapeColor": self.shape_color.to_dict(),
+            "shape": self.shape.value,
         }
 
     @staticmethod
     def from_dict(d: dict):
         return Aspect(
             name=d["name"],
-            text_color=Color.from_dict(d["text_color"]),
-            shape_color=Color.from_dict(d["shape_color"]),
-            shape=d["shape"]
+            text_color=Color.from_dict(d["textColor"]),
+            shape_color=Color.from_dict(d["shapeColor"]),
+            shape=Shape(d["shape"]),
         )
 
 
@@ -54,16 +54,11 @@ class Position:
     y: float
 
     def to_dict(self):
-        return {
-            "x": self.x,
-            "y": self.y
-        }
+        return {"x": self.x, "y": self.y}
 
     @staticmethod
     def from_dict(d: dict):
-        return Position(x=d["x"],
-                        y=d["y"]
-                        )
+        return Position(x=d["x"], y=d["y"])
 
 
 @dataclasses.dataclass
@@ -73,8 +68,8 @@ class Entity(ExtractableElement):
 
     def to_dict(self):
         res = super().to_dict()
-        res['aspect'] = self.aspect.to_dict()
-        res['position'] = self.position.to_dict()
+        res["aspect"] = self.aspect.to_dict()
+        res["position"] = self.position.to_dict()
         return res
 
     @staticmethod
@@ -83,19 +78,19 @@ class Entity(ExtractableElement):
             name=d["name"],
             description=d["description"],
             aspect=Aspect.from_dict(d["aspect"]),
-            position=Position.from_dict(d["position"])
+            position=Position.from_dict(d["position"]),
         )
 
 
 @dataclasses.dataclass
 class Relation(ExtractableElement):
-    start: Entity
-    end: Entity
+    source: Entity
+    target: Entity
 
     def to_dict(self):
         res = super().to_dict()
-        res['start'] = self.start.to_dict()
-        res['end'] = self.end.to_dict()
+        res["source"] = self.source.to_dict()
+        res["target"] = self.target.to_dict()
         return res
 
     @staticmethod
@@ -103,6 +98,6 @@ class Relation(ExtractableElement):
         return Relation(
             name=d["name"],
             description=d["description"],
-            start=d["start"],
-            end=d["end"]
+            source=Entity.from_dict(d["source"]),
+            target=Entity.from_dict(d["target"]),
         )

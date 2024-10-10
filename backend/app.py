@@ -78,17 +78,42 @@ def load_meta_model():
 
 @app.route("/model/", methods=["PATCH"])
 def patch_meta_model():
-    print(request)
     new_elements = request.json
-    print(new_elements)
-    new_entities = [Entity.from_dict(e) for e in new_elements["entities"]]
-    new_relations = [Relation.from_dict(e) for e in new_elements["relations"]]
-    application_model.entities.extend(new_entities)
-    application_model.relations.extend(new_relations)
+
+    for e in new_elements["entities"]:
+        entity = Entity.from_dict(e)
+        is_new = True
+        for other in application_model.entities:
+            if other.name == entity.name:
+                other.description = entity.description
+                other.aspect = entity.aspect
+                other.position = entity.position
+                is_new = False
+                break
+        if is_new:
+            application_model.entities.append(entity)
+
+    for r in new_elements["relations"]:
+        relation = Relation.from_dict(r)
+        is_new = True
+        for other in application_model.relations:
+            if other.name == relation.name:
+                other.description = relation.description
+                other.source = application_model.get_entity_by_name(
+                    relation.source.name
+                )
+                other.target = application_model.get_entity_by_name(
+                    relation.target.name
+                )
+                is_new = False
+                print(f"Patched relation: {other.to_dict()}")
+                break
+        if is_new:
+            print("Added new relation")
+            application_model.relations.append(relation)
+
     return {
         "success": True,
-        "newRelations": len(new_relations),
-        "newEntities": len(new_entities),
     }
 
 
@@ -99,5 +124,5 @@ def get_aspects():
     for a in all_aspects:
         if a.name in aspects_by_name:
             continue
-        aspects_by_name[a.name] = a
+        aspects_by_name[a.name] = a.to_dict()
     return list(aspects_by_name.values())
