@@ -1,6 +1,8 @@
 import dataclasses
+import json
 import typing
 import random
+from pathlib import Path
 
 from model.color import CommonColors
 from model.meta_model import Entity, Aspect, Relation, Position
@@ -38,6 +40,22 @@ class ApplicationModel:
             "entities": [e.to_dict() for e in self.entities],
             "relations": [r.to_dict() for r in self.relations],
         }
+
+    @staticmethod
+    def from_dict(data: dict) -> "ApplicationModel":
+        return ApplicationModel(
+            entities=[Entity.from_dict(e) for e in data["entities"]],
+            relations=[Relation.from_dict(r) for r in data["relations"]],
+        )
+
+    def save(self, file_path: typing.Union[str, Path]) -> None:
+        with open(file_path, "w") as file:
+            json.dump(self.to_dict(), file)
+
+    @staticmethod
+    def load(file_path: typing.Union[str, Path]) -> "ApplicationModel":
+        with open(file_path, "r") as file:
+            return ApplicationModel.from_dict(json.load(file))
 
 
 def get_dummy_application_model() -> ApplicationModel:
