@@ -31,22 +31,19 @@ export class KnowledgeGraphService {
         if(!Object.hasOwn(json, "edges")) {
             return undefined;
         }
-        return json
+        return json;
+    }
 
-        /*return {
-            nodes: [
-                {id: "n1", name: "Martin K.", aspect: "organizational"},
-                {id: "n2", name: "Julian N.", aspect: "organizational"},
-                {id: "n3", name: "Uni Bayreuth", aspect: "organizational"},
-                {id: "n4", name: "TU Wien", aspect: "organizational"},
-                {id: "n5", name: "Stefan B.", aspect: "organizational"},
-            ],
-            edges: [
-                {id: "e1", sourceId: "n1", targetId: "n3", name: "employed at"},
-                {id: "e2", sourceId: "n2", targetId: "n3", name: "employed at"},
-                {id: "e3", sourceId: "n5", targetId: "n4", name: "employed at"},
-                {id: "e4", sourceId: "n3", targetId: "n4", name: "cooperate"},
-            ],
-        }*/
+    public extract = async (file: File): Promise<boolean> => {
+        const data = new FormData();
+        data.append("file", file);
+
+        const response = await fetch(" http://127.0.0.1:5000/graph/extract", {
+            method: "POST",
+            body: data
+        });
+
+        const json = await response.json();
+        return json["success"];
     }
 }

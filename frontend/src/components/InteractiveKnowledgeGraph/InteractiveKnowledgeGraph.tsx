@@ -4,13 +4,18 @@ import {KnowledgeGraphService} from "../../services/knowledgeGraph";
 
 import '@xyflow/react/dist/style.css';
 import {randomColorScheme, randomColorSet} from "../../services/colors";
-import {Input, Spin} from "antd";
+import {Button, Input, Spin} from "antd";
+import Dragger from "antd/es/upload/Dragger";
+import {InboxOutlined} from "@ant-design/icons";
 
 const InteractiveKnowledgeGraph = () => {
     const [isLoading, setIsLoading] = React.useState(false);
     const [hasGraph, setHasGraph] = React.useState(true);
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+    const [extractFromFile, setExtractFromFile] = React.useState<File | undefined>();
+    const [canExtract, setCanExtract] = React.useState(false);
 
     const [searchText, setSearchText] = React.useState<string | undefined>();
 
@@ -46,7 +51,7 @@ const InteractiveKnowledgeGraph = () => {
             return {
                 id: n.id,
                 position: {
-                    x: Math.random() * 500, y: Math.random() * 500
+                    x: Math.random() * 1500, y: Math.random() * 1500
                 },
                 data: {
                     label: n.name,
@@ -127,24 +132,70 @@ const InteractiveKnowledgeGraph = () => {
         );
     }
 
+    const renderFileUpload = () => {
+        return (
+            <>
+            <Dragger
+                beforeUpload={(file) => {
+                    setExtractFromFile(file);
+                    setCanExtract(true);
+                    return false;
+                }}
+            >
+                <p className="ant-upload-drag-icon">
+                    <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">Extract graph from file</p>
+                <p className="ant-upload-hint">
+                    Drag and drop a pdf file here to extract a knowledge graph.
+                </p>
+            </Dragger>
+                <Button
+                    type={"primary"}
+                    disabled={!canExtract}
+                    onClick={async () => {
+                        if(!extractFromFile) {
+                            console.error("No file set, this should not happen.");
+                            return;
+                        }
+                        const file = extractFromFile;
+                        setCanExtract(false);
+                        setExtractFromFile(undefined);
+                        await knowledgeGraphService.extract(file);
+                        await load();
+                    }}
+                >
+                    Extract
+                </Button>
+            </>
+        );
+    }
+
+    const renderSearch = () => {
+        return (
+            <Input
+                placeholder={"find nodes..."}
+                value={searchText}
+                onChange={e => {
+                    const newText = e.target.value;
+                    setSearchText(newText);
+
+                    if(newText.length == 0) {
+                        highlightNodes([]);
+                    } else {
+                        const toHighlight = findNodes(n => isNodeRelevant(n, newText));
+                        highlightNodes(toHighlight);
+                    }
+                }}
+            />
+        );
+    }
+
     return (
         <div style={{ width: '100vw', height: '100vh', position: "relative" }}>
             <div style={{width: 250, position: "absolute", top: 5, right: 5, zIndex: 10}}>
-                <Input
-                    placeholder={"find nodes..."}
-                    value={searchText}
-                    onChange={e => {
-                        const newText = e.target.value;
-                        setSearchText(newText);
-
-                        if(newText.length == 0) {
-                            highlightNodes([]);
-                        } else {
-                            const toHighlight = findNodes(n => isNodeRelevant(n, newText));
-                            highlightNodes(toHighlight);
-                        }
-                    }}
-                />
+                {renderSearch()}
+                {renderFileUpload()}
             </div>
             {renderFlow()}
         </div>
