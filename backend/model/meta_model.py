@@ -1,6 +1,7 @@
 import dataclasses
 
 from model.color import Color
+from model.shape import Shape
 
 
 @dataclasses.dataclass
@@ -27,14 +28,14 @@ class Aspect:
     name: str
     text_color: Color
     shape_color: Color
-    shape: str
+    shape: Shape
 
     def to_dict(self):
         return {
             "name": self.name,
             "text_color": self.text_color,
             "shape_color": self.shape_color,
-            "shape": self.shape
+            "shape": self.shape.value
         }
 
     @staticmethod

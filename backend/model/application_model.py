@@ -4,6 +4,7 @@ import random
 
 from model.color import CommonColors
 from model.meta_model import Entity, Aspect, Relation, Position
+from model.shape import Shape
 
 
 @dataclasses.dataclass
@@ -50,7 +51,7 @@ TOOL = Entity(name='Tool',
               aspect=Aspect(name='operational',
                             text_color=CommonColors.BLACK.value,
                             shape_color=CommonColors.GREEN.value,
-                            shape='rectangle'),
+                            shape=Shape.PARALLELOGRAM),
               position=get_random_position(0, 10, 0, 10))
 
 ACTOR = Entity(name='Actor',
@@ -58,7 +59,7 @@ ACTOR = Entity(name='Actor',
                aspect=Aspect(name='organizational',
                              text_color=CommonColors.BLACK.value,
                              shape_color=CommonColors.RED.value,
-                             shape='rectangle'
+                             shape=Shape.RECTANGLE
                              ),
                position=get_random_position(0, 10, 0, 10))
 
@@ -67,7 +68,7 @@ TASK = Entity(name='Task',
               aspect=Aspect(name='control-flow',
                             text_color=CommonColors.BLACK.value,
                             shape_color=CommonColors.MAGENTA.value,
-                            shape='rectangle'
+                            shape=Shape.ROUND_RECTANGLE
                             ),
               position=get_random_position(0, 10, 0, 10))
 

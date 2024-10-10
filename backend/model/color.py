@@ -44,6 +44,7 @@ class Color:
         return tuple(int(hex_value[i:i + 2], 16) for i in (0, 2, 4))
 
 
+
 class CommonColors(Enum):
     RED = Color(r=255, g=0, b=0)
     GREEN = Color(r=0, g=255, b=0)
