@@ -3,7 +3,7 @@ import pathlib
 
 import flask
 from flask import Flask, request
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
 import model.knowledge_graph as kg
 from model import match
@@ -75,10 +75,10 @@ def extract_knowledge_graph():
     return {"success": True, "graph": graph.to_dict()}
 
 
-@app.route("/model/", methods=["POST"])
+@app.route("/model/extract", methods=["POST"])
 def import_meta_model():
     file = request.files["file"]
-    application_model = parse_xml_file(file.stream.read())
+    application_model = parse_xml_file(file.stream)
     application_model.save(application_model_path)
 
     return {"success": True}
@@ -89,7 +89,7 @@ def load_meta_model():
     # todo: load from database / file
     if not os.path.isfile(application_model_path):
         flask.abort(404)
-    return ApplicationModel.load(application_model_path)
+    return ApplicationModel.load(application_model_path).to_dict()
 
 
 @app.route("/model/", methods=["PATCH"])
