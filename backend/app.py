@@ -34,13 +34,16 @@ def extract_knowledge_graph():
     file = request.files["file"]
     loading_step = FileLoader()
 
-    with tempfile.NamedTemporaryFile() as tf:
-        file.save(tf)
-        file_content = loading_step.run([tf.name])[0]
+    with open("file.pdf", "wb") as f:
+        file.save(f)
+        parsed_files = loading_step.run([f.name])
+        if len(parsed_files) != 1:
+            raise AssertionError("Parsing failed")
+        file_content = parsed_files[0]
 
     prompt_step = PromptCreation()
-    entities, relations = prompt_step.run(model=Models.GPT_3_5.value,
-                                          application_model=get_dummy_application_model(),
+    entities, relations = prompt_step.run(model=Models.GPT_4o_2024_05_13.value,
+                                          application_model=application_model,
                                           parsed_file=file_content)
 
     results = {
@@ -63,7 +66,7 @@ def load_meta_model():
 
 
 @app.route('/model/', methods=['PATCH'])
-def path_meta_model():
+def patch_meta_model():
     print(request)
     new_elements = request.json
     print(new_elements)
@@ -72,6 +75,7 @@ def path_meta_model():
     application_model.entities.extend(new_entities)
     application_model.relations.extend(new_relations)
     return {
+        "success": True,
         "newRelations": len(new_relations),
         "newEntities": len(new_entities)
     }
