@@ -1,14 +1,17 @@
 import React from "react";
-import {Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesState} from "@xyflow/react";
+import {addEdge, Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesState} from "@xyflow/react";
 import {Aspect, Entity, MetaModelService, Relation} from "../../services/metaModelService";
 import {Button, Form, Input, Select, Spin} from "antd";
 import EntityInput from "../EntityInput/EntityInput";
 import RelationInput from "../RelationInput/RelationInput";
+import MetaModelEdge from "../MetaModelEdge/MetaModelEdge";
+import MetaModelNode from "../MetaModelNode/MetaModelNode";
 
 
 const MetaModel = () => {
     const [isLoading, setIsLoading] = React.useState(false);
     const [hasGraph, setHasGraph] = React.useState(true);
+    const [entities, setEntities] = React.useState<Entity[]>([]);
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [aspects, setAspects] = React.useState<Aspect[]>([]);
@@ -17,6 +20,22 @@ const MetaModel = () => {
 
     const metaModelService = new MetaModelService();
 
+    const edgeTypes = React.useMemo(() => {
+        return {
+            "meta-model-edge": MetaModelEdge
+        };
+    }, []);
+
+    const nodeTypes = React.useMemo(() => {
+        return {
+            "meta-model-node": MetaModelNode
+        };
+    }, []);
+
+    const onConnect = React.useCallback(
+        (params: any) => setEdges((eds) => addEdge(params, eds)),
+        [setEdges],
+    );
     const load = async () => {
         setIsLoading(true);
         let modelData;
@@ -39,29 +58,35 @@ const MetaModel = () => {
             setIsLoading(false);
             return;
         }
+
         const entityNodes = modelData.entities.map(e => {
             return {
                 id: e.name,
-                position: {
-                    x: Math.random() * 500, y: Math.random() * 500
-                },
+                position: e.position,
                 data: {
                     label: e.name,
+                    entity: e
                 },
+                type: "meta-model-node"
             };
         });
-        const relationNodes = modelData.relations.map(r => {
+        const relationEdges = modelData.relations.map(r => {
             return {
                 id: r.name,
-                position: {
-                    x: Math.random() * 500, y: Math.random() * 500
-                },
+                source: r.source.name,
+                target: r.target.name,
                 data: {
                     label: r.name,
+                    relation: r,
+                    persisted: true
                 },
+                type: "meta-model-edge"
             };
         });
-        setNodes(entityNodes.concat(relationNodes))
+
+        setEntities(modelData.entities);
+        setNodes(entityNodes);
+        setEdges(relationEdges);
         setAspects(aspectData);
         setIsLoading(false);
     }
@@ -85,6 +110,41 @@ const MetaModel = () => {
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
+                    onConnect={async (connection) => {
+                        const source = connection.source;
+                        const target = connection.target;
+
+                        const sourceEntity = entities.find(e => e.name == source);
+                        const targetEntity = entities.find(e => e.name == target);
+
+                        console.log(sourceEntity, targetEntity)
+
+                        if(!sourceEntity) return;
+                        if(!targetEntity) return;
+
+                        const newRelation: Relation = {
+                            name: "",
+                            description: "",
+                            source: sourceEntity,
+                            target: targetEntity
+                        };
+
+                        await metaModelService.patchModel([], [newRelation]);
+
+                        setEdges([...edges, {
+                            id: edges.length.toString(),
+                            source: source,
+                            target: target,
+                            data: {
+                                label: "",
+                                relation: newRelation,
+                                persisted: false
+                            },
+                            type: "meta-model-edge"
+                        }]);
+                    }}
+                    edgeTypes={edgeTypes}
+                    nodeTypes={nodeTypes}
                 >
                     <Background />
                     <Controls />
@@ -104,14 +164,15 @@ const MetaModel = () => {
                         aspects={aspects}
                         entity={newEntity}
                         onChange={setNewEntity}
-                        onSubmit={(e) => metaModelService.addToModel([e], [])}
+                        onSubmit={(e) => metaModelService.patchModel([e], [])}
                     />
                 </div>
                 <div style={{borderRadius: 3, border: "solid 1px black", padding: "5px 15px", backgroundColor: "white", marginBottom: 25}}>
                     <RelationInput
+                        entities={entities}
                         relation={newRelation}
                         onChange={setNewRelation}
-                        onSubmit={(r) => metaModelService.addToModel([], [r])}
+                        onSubmit={(r) => metaModelService.patchModel([], [r])}
                     />
                 </div>
             </div>

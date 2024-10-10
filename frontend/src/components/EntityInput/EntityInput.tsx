@@ -56,7 +56,11 @@ const EntityInput = ({aspects, entity, onChange, onSubmit}: Props) => {
                         onSubmit({
                             name: entity.name,
                             aspect: entity.aspect,
-                            description: entity.description
+                            description: entity.description,
+                            position: {
+                                x: Math.random() * 150,
+                                y: Math.random() * 150
+                            }
                         });
                     }}
                 >

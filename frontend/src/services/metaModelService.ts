@@ -1,16 +1,32 @@
+export interface Color {
+    r: number;
+    g: number;
+    b: number;
+    hex: string;
+}
+
 export interface Aspect {
     name: string;
+    textColor: Color;
+    shapeColor: Color;
+    shape: string;
 }
 
 export interface Entity {
     name: string;
     description: string;
     aspect: Aspect;
+    position: {
+        x: number,
+        y: number
+    }
 }
 
 export interface Relation {
     name: string;
     description: string;
+    source: Entity;
+    target: Entity;
 }
 
 export interface MetaModel {
@@ -29,7 +45,7 @@ export class MetaModelService {
         return await response.json();
     }
 
-    public addToModel = async (entities: Entity[], relations: Relation[]): Promise<boolean> => {
+    public patchModel = async (entities: Entity[], relations: Relation[]): Promise<boolean> => {
         const response = await fetch("http://127.0.0.1:5000/model/", {
             method: "PATCH",
             body: JSON.stringify({
@@ -55,21 +71,5 @@ export class MetaModelService {
             return undefined;
         }
         return json;
-
-        /*return {
-            nodes: [
-                {id: "n1", name: "Martin K.", aspect: "organizational"},
-                {id: "n2", name: "Julian N.", aspect: "organizational"},
-                {id: "n3", name: "Uni Bayreuth", aspect: "organizational"},
-                {id: "n4", name: "TU Wien", aspect: "organizational"},
-                {id: "n5", name: "Stefan B.", aspect: "organizational"},
-            ],
-            edges: [
-                {id: "e1", sourceId: "n1", targetId: "n3", name: "employed at"},
-                {id: "e2", sourceId: "n2", targetId: "n3", name: "employed at"},
-                {id: "e3", sourceId: "n5", targetId: "n4", name: "employed at"},
-                {id: "e4", sourceId: "n3", targetId: "n4", name: "cooperate"},
-            ],
-        }*/
     }
 }
