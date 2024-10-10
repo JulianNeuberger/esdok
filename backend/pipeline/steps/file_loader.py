@@ -2,6 +2,8 @@ import typing
 import os
 
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
+
 from pipeline.steps.step import BasePipelineStep
 from pipeline.steps.utils import ParsedFile
 
@@ -10,21 +12,6 @@ class FileLoader(BasePipelineStep):
     SUPPORTED_FILE_ENDINGS = [
         '.pdf'
     ]
-
-    @staticmethod
-    def is_of_type(file_path, file_ending: str):
-        """
-        This function checks if the file is of a particular type.
-
-        Args:
-            file_path (str): The path to the file.
-            file_ending (str): Type of the file
-
-        Returns:
-            bool: True if it's of the given type, False otherwise.
-        """
-        _, file_extension = os.path.splitext(file_path)
-        return file_extension.lower() == file_ending
 
     @staticmethod
     def extract_filename(file_path):
@@ -41,10 +28,12 @@ class FileLoader(BasePipelineStep):
         return file_name
 
     @staticmethod
-    def parse_pdf_file(file_path: str) -> ParsedFile:
-        assert FileLoader.is_of_type(file_path, '.pdf') is True, f'The file {file_path} is not a PDF."'
-
-        reader = PdfReader(file_path)
+    def parse_pdf_file(file_path: str) -> typing.Optional[ParsedFile]:
+        try:
+            reader = PdfReader(file_path)
+        except PdfReadError:
+            print(f'The file {file_path} is not a PDF."')
+            return None
         number_of_pages = len(reader.pages)
         text = ''
         for i, _ in enumerate(reader.pages):
@@ -55,7 +44,10 @@ class FileLoader(BasePipelineStep):
         parsed_files = []
         for file in files:
             assert os.path.isfile(file), f'The required file {file} does not exist'
-            parsed_files.append(self.parse_pdf_file(file))
+            parsed = self.parse_pdf_file(file)
+            if parsed is None:
+                continue
+            parsed_files.append(parsed)
 
         return parsed_files
 

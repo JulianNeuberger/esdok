@@ -1,13 +1,20 @@
 import React from 'react';
-import logo from './logo.svg';
+import {BrowserRouter, Route, Routes} from "react-router-dom";
+import {Empty} from "antd";
+
 import './App.css';
+
 import InteractiveKnowledgeGraph from "./components/InteractiveKnowledgeGraph/InteractiveKnowledgeGraph";
+import MetaModel from "./components/MetaModel/MetaModel";
 
 function App() {
   return (
-    <div className="App">
-      <InteractiveKnowledgeGraph />
-    </div>
+      <BrowserRouter>
+          <Routes>
+              <Route path={"/"} element={<InteractiveKnowledgeGraph />} />
+              <Route path={"/model"} element={<MetaModel />} />
+          </Routes>
+      </BrowserRouter>
   );
 }
 

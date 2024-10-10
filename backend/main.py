@@ -1,3 +1,5 @@
+import json
+
 from model.application_model import get_dummy_application_model
 from pipeline.llm_models import Models
 from pipeline.steps.file_loader import FileLoader
@@ -14,11 +16,12 @@ if __name__ == '__main__':
                                           application_model=get_dummy_application_model(),
                                           parsed_file=file_content)
 
-
-    json_string = (f'nodes: [{", ".join([str(e.to_dict()) for e in entities])}], '
-                    f'edges: [{", ".join([str(r.to_dict()) for r in relations])}]')
+    results = {
+        "nodes": [e.to_dict() for e in entities],
+        "edges": [r.to_dict() for r in relations],
+    }
 
     with open(result_file, 'w', encoding='utf8') as f:
-        f.write(json_string)
+        json.dump(results, f, indent=4)
 
     exit(-1)
