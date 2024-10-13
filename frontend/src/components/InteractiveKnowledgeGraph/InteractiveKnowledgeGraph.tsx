@@ -1,12 +1,13 @@
 import React from "react";
 import {Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesState} from "@xyflow/react";
-import {KnowledgeGraphService} from "../../services/knowledgeGraph";
+import {KnowledgeGraphService, Node as KgNode} from "../../services/knowledgeGraph";
 
 import '@xyflow/react/dist/style.css';
 import {randomColorScheme, randomColorSet} from "../../services/colors";
 import {Button, Input, Popconfirm, Spin} from "antd";
 import Dragger from "antd/es/upload/Dragger";
 import {DeleteOutlined, InboxOutlined} from "@ant-design/icons";
+import KnowledgeGraphNode from "../KnowledgeGraphNode/KnowledgeGraphNode";
 
 const InteractiveKnowledgeGraph = () => {
     const [isLoading, setIsLoading] = React.useState(false);
@@ -18,6 +19,8 @@ const InteractiveKnowledgeGraph = () => {
     const [canExtract, setCanExtract] = React.useState(false);
 
     const [searchText, setSearchText] = React.useState<string | undefined>();
+
+    const nodeTypes = React.useMemo(() => ({"kg-node": KnowledgeGraphNode}), []);
 
     const load = async () => {
         setIsLoading(true);
@@ -49,42 +52,20 @@ const InteractiveKnowledgeGraph = () => {
             console.log(n)
             return {
                 id: n.id,
-                position: n.position,
-                data: {
-                    label: n.name,
+                position: {
+                    x: n.position.x * 700,
+                    y: n.position.y * 700
                 },
-                style: {
+                data: {
+                    node: n,
                     color: textColor,
                     backgroundColor: backgroundColor,
-                    borderWidth: 1
-                }
+                    shape: n.aspect.shape
+                },
+                type: "kg-node"
             };
         }));
         setIsLoading(false);
-    }
-
-    const highlightNodes = (toHighlight: Node[]) => {
-        const newNodes = nodes.map(n => {
-            if(toHighlight.indexOf(n) !== -1) {
-                console.log("highlighting...")
-                return {
-                    ...n,
-                    style: {
-                        ...n.style,
-                        borderWidth: 3
-                    }
-                };
-            } else {
-                return {
-                    ...n,
-                    style: {
-                        ...n.style,
-                        borderWidth: 1
-                    }
-                };
-            }
-        });
-        setNodes(newNodes);
     }
 
     const findNodes = (predicate: (node: Node) => boolean): Node[] => {
@@ -118,6 +99,7 @@ const InteractiveKnowledgeGraph = () => {
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
+                    nodeTypes={nodeTypes}
                 >
                     <Background />
                     <Controls />
@@ -178,10 +160,8 @@ const InteractiveKnowledgeGraph = () => {
                     setSearchText(newText);
 
                     if(newText.length == 0) {
-                        highlightNodes([]);
                     } else {
                         const toHighlight = findNodes(n => isNodeRelevant(n, newText));
-                        highlightNodes(toHighlight);
                     }
                 }}
             />
