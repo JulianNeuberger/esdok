@@ -39,9 +39,18 @@ def delete_graph():
             results_file_path,
             str(results_file_path) + ".bkp",
         )
+    return {"success": True}
 
 
-@app.route("/graph/extract", methods=["POST"])
+@app.route("/graph/layout/", methods=["GET"])
+def layout_graph():
+    graph = kg.Graph.load(results_file_path)
+    graph = graph.layout()
+    graph.save(results_file_path)
+    return {"success": True}
+
+
+@app.route("/graph/extract/", methods=["POST"])
 def extract_knowledge_graph():
     file = request.files["file"]
     loading_step = FileLoader()
@@ -71,6 +80,7 @@ def extract_knowledge_graph():
             match_node=match.node_similarity_matcher(similarity_threshold=0.8),
         )
 
+    graph = graph.layout()
     graph.save(results_file_path)
     return {"success": True, "graph": graph.to_dict()}
 
@@ -79,6 +89,7 @@ def extract_knowledge_graph():
 def import_meta_model():
     file = request.files["file"]
     application_model = parse_xml_file(file.stream)
+    application_model.layout()
     application_model.save(application_model_path)
 
     return {"success": True}
@@ -130,6 +141,7 @@ def patch_meta_model():
             print("Added new relation")
             application_model.relations.append(relation)
 
+    application_model.layout()
     application_model.save(application_model_path)
 
     return {

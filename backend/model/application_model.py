@@ -4,6 +4,8 @@ import typing
 import random
 from pathlib import Path
 
+import networkx as nx
+
 from model.color import CommonColors
 from model.meta_model import Entity, Aspect, Relation, Position
 from model.shape import Shape
@@ -56,6 +58,18 @@ class ApplicationModel:
     def load(file_path: typing.Union[str, Path]) -> "ApplicationModel":
         with open(file_path, "r") as file:
             return ApplicationModel.from_dict(json.load(file))
+
+    def layout(self):
+        g = nx.Graph()
+        g.add_nodes_from([e.name for e in self.entities])
+        g.add_edges_from([(r.source.name, r.target.name) for r in self.relations])
+
+        pos = nx.kamada_kawai_layout(g)
+
+        for e in self.entities:
+            e_pos = pos[e.name] * 400
+            assert e_pos.shape == (2,)
+            e.position = Position(x=e_pos[0], y=e_pos[1])
 
 
 def get_dummy_application_model() -> ApplicationModel:

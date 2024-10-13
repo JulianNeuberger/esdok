@@ -40,7 +40,7 @@ export class MetaModelService {
 
     }
 
-    public loadAspects = async (): Promise<Aspect[] | undefined> => {
+    public loadAspects = async (): Promise<Aspect[]> => {
         const response = await fetch(" http://127.0.0.1:5000/model/aspect");
         return await response.json();
     }

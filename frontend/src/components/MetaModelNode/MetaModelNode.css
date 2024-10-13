@@ -1,0 +1,48 @@
+.meta-node {
+    border-radius: 5px;
+    border: solid 1px black;
+    padding: 7px;
+    background-color: white;
+
+    height: 22px;
+    min-width: 100px;
+
+    transition-duration: 200ms;
+    transition-timing-function: ease-in-out;
+    transition-property: height, width;
+
+    text-align: center;
+
+    overflow: hidden;
+
+    pointer-events: all;
+}
+
+.meta-node.open {
+    height: 280px;
+    min-width: 200px;
+
+    transition-duration: 200ms;
+    transition-timing-function: ease-in-out;
+    transition-property: height, min-width;
+}
+
+.meta-node .name {
+    padding-right: 30px;
+}
+
+.meta-node .description {
+    height: 170px;
+    resize: none;
+    pointer-events: all;
+}
+
+.meta-node .aspect {
+    width: 100%;
+    pointer-events: all;
+}
+
+.meta-node .save {
+    width: 100%;
+    pointer-events: all;
+}

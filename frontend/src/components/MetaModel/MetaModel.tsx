@@ -38,7 +38,7 @@ const MetaModel = () => {
     const load = async () => {
         setIsLoading(true);
         let modelData;
-        let aspectData;
+        let aspectData: Aspect[];
         try {
             modelData = await metaModelService.loadModel();
             aspectData = await metaModelService.loadAspects();
@@ -46,26 +46,24 @@ const MetaModel = () => {
             setIsLoading(false);
             setHasGraph(false);
             console.log(e);
+            return;
         }
         if(typeof modelData === "undefined") {
             setHasGraph(false);
             setIsLoading(false);
             return;
         }
-        if(typeof aspectData === "undefined") {
-            setHasGraph(false);
-            setIsLoading(false);
-            return;
-        }
-
+        console.log(aspectData)
         const entityNodes = modelData.entities.map(e => {
             return {
                 id: e.name,
                 position: e.position,
                 data: {
                     label: e.name,
-                    entity: e
+                    entity: e,
+                    aspects: aspectData
                 },
+                dragHandle: ".name",
                 type: "meta-model-node"
             };
         });
@@ -86,7 +84,7 @@ const MetaModel = () => {
         setEntities(modelData.entities);
         setNodes(entityNodes);
         setEdges(relationEdges);
-        setAspects(aspectData);
+        // setAspects(aspectData);
         setIsLoading(false);
     }
 
@@ -157,7 +155,7 @@ const MetaModel = () => {
 
     const renderFileUpload = () => {
         return (
-            <>
+            <div key={"file-upload"}>
                 <Dragger
                     beforeUpload={(file) => {
                         setUmletinoFile(file);
@@ -188,7 +186,7 @@ const MetaModel = () => {
                 >
                     Extract
                 </Button>
-            </>
+            </div>
         );
     }
 
@@ -200,6 +198,7 @@ const MetaModel = () => {
                 </div>
                 <div style={{borderRadius: 3, border: "solid 1px black", padding: "5px 15px", backgroundColor: "white", marginBottom: 25}}>
                     <EntityInput
+                        key={"entity-input"}
                         aspects={aspects}
                         entity={newEntity}
                         onChange={setNewEntity}
@@ -208,6 +207,7 @@ const MetaModel = () => {
                 </div>
                 <div style={{borderRadius: 3, border: "solid 1px black", padding: "5px 15px", backgroundColor: "white", marginBottom: 25}}>
                     <RelationInput
+                        key={"relation-input"}
                         entities={entities}
                         relation={newRelation}
                         onChange={setNewRelation}

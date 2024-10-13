@@ -11,7 +11,8 @@ export interface Props {
         node: KgNode,
         color?: string;
         backgroundColor?: string;
-        shape?: "rounded" | "rect" | "parallelogram"
+        shape?: "rounded" | "rect" | "parallelogram",
+        opacity?: number
     }
 }
 
@@ -19,13 +20,14 @@ export interface Props {
 const KnowledgeGraphNode = ({data}: Props) => {
     const node = data.node;
     const shape = data.shape || "rounded";
-    console.log(shape)
+    console.log(`Redraw ${data.node.name}`)
 
     return (
         <div
             className={`node ${shape}`}
             style={{
                 color: data.color,
+                opacity: data.opacity
             }}
         >
             <div

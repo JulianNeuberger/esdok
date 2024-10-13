@@ -66,7 +66,14 @@ class PromptCreation(BasePipelineStep):
         lines = result.splitlines()
 
         for i, line in enumerate(lines):
-            result_type, name = line.split("|")
+            if "|" not in line:
+                print(f"Skipping line '{line}', missing separator pipe!")
+                continue
+            line_values = line.split("|")
+            if len(line_values) != 2:
+                print(f"Skipping line '{line}', not enough values separated by pipe!")
+                continue
+            result_type, name = line_values
             result = EntityResult(
                 id=f"n{i}",
                 type=result_type,

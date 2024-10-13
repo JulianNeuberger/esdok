@@ -3,6 +3,10 @@ import json
 import typing
 from pathlib import Path
 
+import networkx as nx
+
+from model.meta_model import Position
+
 
 @dataclasses.dataclass(frozen=True)
 class Graph:
@@ -80,6 +84,39 @@ class Graph:
         with open(file_path, "w") as f:
             json.dump(self.to_dict(), f)
 
+    def replace_node(self, node: "Node") -> "Graph":
+        updated_edges = []
+        for e in self.edges:
+            if e.source.id == node.id:
+                e = Edge(id=e.id, source=node, target=e.target, type=e.type)
+            if e.target.id == node.id:
+                e = Edge(id=e.id, source=e.source, target=node, type=e.type)
+            updated_edges.append(e)
+        updated_nodes = []
+        for n in self.nodes:
+            if n.id == node.id:
+                updated_nodes.append(node)
+            else:
+                updated_nodes.append(n)
+        return Graph(nodes=updated_nodes, edges=updated_edges)
+
+    def layout(self) -> "Graph":
+        g = nx.Graph()
+        g.add_nodes_from([n.id for n in self.nodes])
+        g.add_edges_from([(r.source.id, r.target.id) for r in self.edges])
+
+        pos = nx.kamada_kawai_layout(g)
+
+        knowledge_graph = self
+        for n in self.nodes:
+            n_pos = pos[n.id]
+            assert n_pos.shape == (2,)
+            pos_as_tuple = (n_pos[0], n_pos[1])
+            knowledge_graph = knowledge_graph.replace_node(
+                n.with_position(pos_as_tuple)
+            )
+        return knowledge_graph
+
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class Aspect:
@@ -127,6 +164,11 @@ class Node:
             type=d["type"],
             position=(d["position"]["x"], d["position"]["y"]),
             aspect=Aspect.from_dict(d["aspect"]),
+        )
+
+    def with_position(self, pos: typing.Tuple[float, float]) -> "Node":
+        return Node(
+            position=pos, aspect=self.aspect, type=self.type, name=self.name, id=self.id
         )
 
 

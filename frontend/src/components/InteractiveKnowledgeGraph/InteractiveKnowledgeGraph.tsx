@@ -30,7 +30,6 @@ const InteractiveKnowledgeGraph = () => {
         } catch (e) {
             setIsLoading(false);
             setHasGraph(false);
-            console.log(e);
         }
         if(typeof backendData === "undefined") {
             setHasGraph(false);
@@ -49,7 +48,6 @@ const InteractiveKnowledgeGraph = () => {
         }));
         setNodes(backendData.nodes.map(n => {
             const {textColor, backgroundColor} = colorScheme[n.aspect.name];
-            console.log(n)
             return {
                 id: n.id,
                 position: {
@@ -79,9 +77,11 @@ const InteractiveKnowledgeGraph = () => {
     const knowledgeGraphService = new KnowledgeGraphService();
 
     const isNodeRelevant = (node: Node, searchText: string): boolean => {
-        if(node.data.label == undefined) return false;
-        if(!(typeof node.data.label === "string")) return false;
-        return node.data.label.toLowerCase().indexOf(searchText.toLowerCase()) !== -1;
+        if(!searchText) return true;
+        const kgNode: KgNode = node.data.node as KgNode;
+        if(!kgNode) return false;
+        if(kgNode.name == undefined) return false;
+        return kgNode.name.toLowerCase().indexOf(searchText.toLowerCase()) !== -1;
     }
 
     const renderFlow = () => {
@@ -150,6 +150,11 @@ const InteractiveKnowledgeGraph = () => {
         );
     }
 
+    const layoutGraph = async () => {
+        const success = await knowledgeGraphService.layout();
+        await load();
+    }
+
     const renderSearch = () => {
         return (
             <Input
@@ -159,10 +164,20 @@ const InteractiveKnowledgeGraph = () => {
                     const newText = e.target.value;
                     setSearchText(newText);
 
-                    if(newText.length == 0) {
-                    } else {
-                        const toHighlight = findNodes(n => isNodeRelevant(n, newText));
-                    }
+                    const newNodes = nodes.map(n => {
+
+                        const relevant = isNodeRelevant(n, newText);
+                        return {
+                            ...n,
+                            zIndex: relevant ? 1: 0,
+                            data: {
+                                ...n.data,
+                                opacity: relevant ? 1.0 : 0.3
+                            }
+                        }
+                    });
+
+                    setNodes(newNodes);
                 }}
             />
         );
@@ -173,17 +188,22 @@ const InteractiveKnowledgeGraph = () => {
             <div style={{width: 250, position: "absolute", top: 5, right: 5, zIndex: 10}}>
                 {renderSearch()}
                 {renderFileUpload()}
-                {
-                    <Popconfirm
-                        title={"Delete knowledge graph"}
-                        description={"This will remove the knowledge graph entirely, are you sure?"}
-                        onConfirm={async () => {
-                            await knowledgeGraphService.delete();
-                            await load();
-                        }}
-                    >
-                        <Button danger icon={<DeleteOutlined />}>Delete</Button>
-                    </Popconfirm>}
+                <Popconfirm
+                    title={"Delete knowledge graph"}
+                    description={"This will remove the knowledge graph entirely, are you sure?"}
+                    onConfirm={async () => {
+                        await knowledgeGraphService.delete();
+                        await load();
+                    }}
+                >
+                    <Button danger icon={<DeleteOutlined />}>Delete</Button>
+                </Popconfirm>
+                <Button
+                    onClick={layoutGraph}
+                    type={"primary"}
+                >
+                    Layout
+                </Button>
             </div>
             {renderFlow()}
         </div>

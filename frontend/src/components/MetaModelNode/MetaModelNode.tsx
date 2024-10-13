@@ -1,50 +1,75 @@
 import React from "react";
 
-import {Entity} from "../../services/metaModelService";
-import {Button, Form, Select} from "antd";
-import {CloseOutlined, DownOutlined} from "@ant-design/icons";
+import {Aspect, Entity, MetaModelService} from "../../services/metaModelService";
+import {Button, Select, Space} from "antd";
+import {CloseOutlined, DownOutlined, SaveFilled} from "@ant-design/icons";
 import {Handle, Position} from "@xyflow/react";
 import TextArea from "antd/es/input/TextArea";
+
+import "./MetaModelNode.css";
 
 interface Props  {
     data: {
         entity: Entity;
+        aspects: Aspect[];
     };
 }
+
+const metaModelService = new MetaModelService();
 
 const MetaModelNode = ({ data }: Props) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [entity, setEntity] = React.useState(data.entity);
 
     const renderContent = () => {
-        if(!isOpen) return <>{entity.name}</>;
+        if(!isOpen) return;
         return (
-            <Form>
-                <Form.Item>{entity.name}</Form.Item>
-                <Form.Item>
-                    <TextArea
-                        value={entity.description}
-                        placeholder={"description"}
-                        onChange={e => {
-                            setEntity({
-                                ...entity,
-                                description: e.target.value
-                            })
-                        }}
-                    />
-                </Form.Item>
-            </Form>
+            <Space direction={"vertical"} style={{marginTop: 10, pointerEvents: "all"}}>
+                <Select
+                    className={"aspect"}
+                    onChange={(aspectName, e) => {
+                        const newAspect = data.aspects.find(a => a.name == aspectName);
+                        if(!newAspect) {
+                            console.error(`Could not find ${aspectName} in aspects!`)
+                            return;
+                        }
+                        console.log(`${aspectName}`, newAspect)
+                        setEntity({...entity, aspect: newAspect})
+                    }}
+                    value={entity.aspect.name}
+                >
+                    {
+                        data.aspects?.map(a => {
+                            return (<Select.Option value={a.name} aspect={a} key={a.name}>{a.name}</Select.Option>);
+                        })
+                    }
+                </Select>
+                <TextArea
+                    className={"description"}
+                    value={entity.description}
+                    placeholder={"description"}
+                    onChange={e => {
+                        setEntity({
+                            ...entity,
+                            description: e.target.value
+                        })
+                    }}
+                />
+                <Button
+                    className={"save"}
+                    type={"primary"}
+                    onClick={async () => {
+                        await metaModelService.patchModel([entity], [])
+                    }}
+                >
+                    Save
+                </Button>
+            </Space>
         );
     }
 
     return (
-        <div style={{
-            borderRadius: 5,
-            border: "solid 1px black",
-            padding: 10,
-            paddingRight: 50,
-            backgroundColor: "white"
-        }}>
+        <div className={`meta-node ${isOpen ? "open" : ""}`}>
             <Button
                 icon={isOpen ? <CloseOutlined /> : <DownOutlined />}
                 shape={"circle"}
@@ -58,6 +83,7 @@ const MetaModelNode = ({ data }: Props) => {
                 }}
             />
             <Handle type={"source"} position={Position.Top} />
+            <div className={"name"}>{entity.name}</div>
             {renderContent()}
             <Handle type={"target"} position={Position.Bottom} />
         </div>

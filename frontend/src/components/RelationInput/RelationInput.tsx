@@ -14,8 +14,8 @@ export interface Props {
 const RelationInput = ({relation, entities, onChange, onSubmit}: Props) => {
     return (
         <Form>
-            <Form.Item>New Relation</Form.Item>
-            <Form.Item label={"name"}>
+            <Form.Item key={"header"}>New Relation</Form.Item>
+            <Form.Item label={"name"} key={"name"}>
                 <Input value={relation.name} onChange={(e) => {
                     onChange({
                         ...relation,
@@ -23,7 +23,7 @@ const RelationInput = ({relation, entities, onChange, onSubmit}: Props) => {
                     })
                 }}/>
             </Form.Item>
-            <Form.Item label={"description"}>
+            <Form.Item label={"description"} key={"description"}>
                 <TextArea value={relation.description} onChange={(e) => {
                     onChange({
                         ...relation,
@@ -43,7 +43,7 @@ const RelationInput = ({relation, entities, onChange, onSubmit}: Props) => {
                         })
                     }}
                 >
-                    {entities.map(e => <Select.Option value={e.name} entity={e}>{e.name}</Select.Option>)}
+                    {entities.map(e => <Select.Option value={e.name} entity={e} key={e.name}>{e.name}</Select.Option>)}
                 </Select>
             </Form.Item>
             <Form.Item label={"target"}>
@@ -58,7 +58,7 @@ const RelationInput = ({relation, entities, onChange, onSubmit}: Props) => {
                         })
                     }}
                 >
-                    {entities.map(e => <Select.Option value={e.name} entity={e}>{e.name}</Select.Option>)}
+                    {entities.map(e => <Select.Option value={e.name} entity={e} key={e.name}>{e.name}</Select.Option>)}
                 </Select>
             </Form.Item>
             <Form.Item>

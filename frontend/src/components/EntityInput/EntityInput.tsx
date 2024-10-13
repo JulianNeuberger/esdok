@@ -43,7 +43,7 @@ const EntityInput = ({aspects, entity, onChange, onSubmit}: Props) => {
                         })
                     }}
                 >
-                    {aspects.map(a => <Select.Option value={a.name} aspect={a}>{a.name}</Select.Option>)}
+                    {aspects.map(a => <Select.Option value={a.name} aspect={a} key={a.name}>{a.name}</Select.Option>)}
                 </Select>
             </Form.Item>
             <Form.Item>
