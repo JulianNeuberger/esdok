@@ -6,12 +6,13 @@ import './App.css';
 
 import InteractiveKnowledgeGraph from "./components/InteractiveKnowledgeGraph/InteractiveKnowledgeGraph";
 import MetaModel from "./components/MetaModel/MetaModel";
+import KnowledgeGraphView from "./views/KnowledgeGraphView";
 
 function App() {
   return (
       <BrowserRouter>
           <Routes>
-              <Route path={"/"} element={<InteractiveKnowledgeGraph />} />
+              <Route path={"/"} element={<KnowledgeGraphView />} />
               <Route path={"/model"} element={<MetaModel />} />
           </Routes>
       </BrowserRouter>
