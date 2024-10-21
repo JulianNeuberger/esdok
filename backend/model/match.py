@@ -12,10 +12,8 @@ def node_similarity_matcher(
             return False
         if node1.aspect != node2.aspect:
             return False
-        return (
-            difflib.SequenceMatcher(None, node1.name, node2.name).ratio()
-            > similarity_threshold
-        )
+        ratio = difflib.SequenceMatcher(None, node1.name, node2.name).ratio()
+        return ratio > similarity_threshold
 
     return match_node_by_string_similarity
 

@@ -1,12 +1,9 @@
 import dataclasses
 import json
-import random
 import typing
 from pathlib import Path
 
 import networkx as nx
-
-from model.meta_model import Position
 
 
 @dataclasses.dataclass(frozen=True)
@@ -14,52 +11,62 @@ class Graph:
     nodes: typing.List["Node"]
     edges: typing.List["Edge"]
 
+    def compact(
+        self,
+        *,
+        match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]],
+        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]],
+    ) -> "Graph":
+        new_nodes = []
+        new_edges = []
+
+        node_mappings: typing.Dict[Node, Node] = {}
+
+        for node in self.nodes:
+            found_match = False
+            for other in new_nodes:
+                if match_node(node, other):
+                    found_match = True
+                    node_mappings[node] = other
+                    break
+            if not found_match:
+                new_nodes.append(node)
+                node_mappings[node] = node
+
+        for edge in self.edges:
+            edge = Edge(
+                id=edge.id,
+                source=node_mappings[edge.source],
+                target=node_mappings[edge.target],
+                type=edge.type,
+            )
+
+            found_match = False
+            for other in new_edges:
+                if match_edge(edge, other):
+                    found_match = True
+                    break
+            if not found_match:
+                new_edges.append(edge)
+
+        return Graph(new_nodes, new_edges)
+
+    def union(self, other: "Graph") -> "Graph":
+        return Graph(
+            nodes=self.nodes + other.nodes,
+            edges=self.edges + other.edges,
+        )
+
     def merge(
         self,
         other: "Graph",
-        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]],
+        *,
         match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]],
+        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]],
     ) -> "Graph":
-        # copy lists, elements are immutable
-        new_nodes = [n for n in self.nodes]
-        new_edges = [e for e in self.edges]
-
-        node_mappings = {}
-        for other_node in other.nodes:
-            has_match = False
-            for self_node in self.nodes:
-                if match_node(self_node, other_node):
-                    # found a matching node, record the mapping
-                    has_match = True
-                    node_mappings[other_node] = self_node
-                    print(f"Merging node {self_node.name} and node {other_node.name}")
-                    break
-
-            if not has_match:
-                # unique node
-                node_mappings[other_node] = other_node
-                new_nodes.append(other_node)
-
-        for other_edge in other.edges:
-            # update node arguments, as they may have been matched
-            other_edge = Edge(
-                id=other_edge.id,
-                source=node_mappings[other_edge.source],
-                target=node_mappings[other_edge.target],
-                type=other_edge.type,
-            )
-
-            has_match = False
-            for self_edge in self.edges:
-                # try and find a match
-                if match_edge(self_edge, other_edge):
-                    has_match = True
-                    break
-
-            if not has_match:
-                new_edges.append(other_edge)
-
-        return Graph(nodes=new_nodes, edges=new_edges)
+        graph = self.union(other)
+        graph = graph.compact(match_node=match_node, match_edge=match_edge)
+        return graph
 
     def to_dict(self) -> dict:
         return {
