@@ -128,8 +128,8 @@ def get_biffls_application_model() -> ApplicationModel:
     PRODUCT = Entity(
         name="Product",
         description="A product refers to any material or item that serves as an input to be processed or transformed, "
-                    "as well as the output or finished result that comes from the process. It can include raw materials, "
-                    "components, or completed goods.",
+                    "as well as the output or finished result that comes from the process. It can include raw "
+                    "materials, components, or completed goods.",
         aspect=Aspect(
             name="operational",
             text_color=CommonColors.BLACK.value,
