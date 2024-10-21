@@ -15,6 +15,7 @@ class GroundtruthMention:
 
 def extract_entity(annotation: str):
     formatted = annotation.rstrip()
+    formatted = formatted.replace('Ê', '')
     parts = formatted.split(' > ')
 
     transformed_value = parts[-1]
