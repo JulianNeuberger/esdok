@@ -78,11 +78,77 @@ def get_dummy_application_model() -> ApplicationModel:
     )
 
 
+def get_biffls_application_model() -> ApplicationModel:
+    CONDITION = Entity(
+        name="Condition",
+        description="A condition is a specific state or situation that affects how something operates or functions, "
+                    "or it can refer to a requirement that must be met for something else to happen.",
+        aspect=Aspect(
+            name="data",
+            text_color=CommonColors.BLACK.value,
+            shape_color=CommonColors.GREEN.value,
+            shape=Shape.PARALLELOGRAM,
+        ),
+        position=get_random_position(0, 10, 0, 10),
+    )
+    WARNING = Entity(
+        name="Warning",
+        description="A warning is a statement or indication that alerts someone to potential danger, risk, or a "
+                    "problem, advising them to take caution or avoid certain actions.",
+        aspect=Aspect(
+            name="data",
+            text_color=CommonColors.BLACK.value,
+            shape_color=CommonColors.GREEN.value,
+            shape=Shape.PARALLELOGRAM,
+        ),
+        position=get_random_position(0, 10, 0, 10),
+    )
+    RESOURCE = Entity(
+        name="Resource",
+        description="A resource is a system, component, controller, or actor that executes a process.",
+        aspect=Aspect(
+            name="organizational",
+            text_color=CommonColors.BLACK.value,
+            shape_color=CommonColors.GREEN.value,
+            shape=Shape.PARALLELOGRAM,
+        ),
+        position=get_random_position(0, 10, 0, 10),
+    )
+    TASK = Entity(
+        name="Task",
+        description="A task is a specific piece of work or activity that needs to be done by an actor.",
+        aspect=Aspect(
+            name="control-flow",
+            text_color=CommonColors.BLACK.value,
+            shape_color=CommonColors.GREEN.value,
+            shape=Shape.PARALLELOGRAM,
+        ),
+        position=get_random_position(0, 10, 0, 10),
+    )
+    PRODUCT = Entity(
+        name="Product",
+        description="A product refers to any material or item that serves as an input to be processed or transformed, "
+                    "as well as the output or finished result that comes from the process. It can include raw materials, "
+                    "components, or completed goods.",
+        aspect=Aspect(
+            name="operational",
+            text_color=CommonColors.BLACK.value,
+            shape_color=CommonColors.GREEN.value,
+            shape=Shape.PARALLELOGRAM,
+        ),
+        position=get_random_position(0, 10, 0, 10),
+    )
+
+    return ApplicationModel(
+        entities=[CONDITION, WARNING, PRODUCT, TASK, RESOURCE], relations=[]
+    )
+
+
 def get_random_position(
-    x_lower: float = 0.0,
-    x_upper: float = 10.0,
-    y_lower: float = 0.0,
-    y_upper: float = 10.0,
+        x_lower: float = 0.0,
+        x_upper: float = 10.0,
+        y_lower: float = 0.0,
+        y_upper: float = 10.0,
 ) -> Position:
     return Position(
         x=random.uniform(x_lower, x_upper), y=random.uniform(y_lower, y_upper)
@@ -134,16 +200,16 @@ def create_dummy_relations() -> typing.List[Relation]:
     task_require_tool = Relation(
         name="task_requires_tool",
         description="A task_require_tool relation indicates that a specific task cannot be "
-        "completed without the use of a particular tool. This relation defines "
-        "the dependency between the task and the tool required to perform it.",
+                    "completed without the use of a particular tool. This relation defines "
+                    "the dependency between the task and the tool required to perform it.",
         source=TASK,
         target=TOOL,
     )
     actor_performs_task = Relation(
         name="actor_performs_task",
         description="The actor_performs_task relation specifies that an actor (a person, "
-        "group, or system) is responsible for carrying out or executing a "
-        "particular task. This relation identifies who is performing the task.",
+                    "group, or system) is responsible for carrying out or executing a "
+                    "particular task. This relation identifies who is performing the task.",
         source=ACTOR,
         target=TASK,
     )
