@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import random
 import typing
 from pathlib import Path
 
@@ -105,7 +106,7 @@ class Graph:
         g.add_nodes_from([n.id for n in self.nodes])
         g.add_edges_from([(r.source.id, r.target.id) for r in self.edges])
 
-        pos = nx.kamada_kawai_layout(g)
+        pos = nx.kamada_kawai_layout(g, scale=500)
 
         knowledge_graph = self
         for n in self.nodes:

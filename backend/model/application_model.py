@@ -64,10 +64,10 @@ class ApplicationModel:
         g.add_nodes_from([e.name for e in self.entities])
         g.add_edges_from([(r.source.name, r.target.name) for r in self.relations])
 
-        pos = nx.kamada_kawai_layout(g)
+        pos = nx.kamada_kawai_layout(g, scale=400)
 
         for e in self.entities:
-            e_pos = pos[e.name] * 400
+            e_pos = pos[e.name]
             assert e_pos.shape == (2,)
             e.position = Position(x=e_pos[0], y=e_pos[1])
 

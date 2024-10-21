@@ -51,8 +51,8 @@ const InteractiveKnowledgeGraph = () => {
             return {
                 id: n.id,
                 position: {
-                    x: n.position.x * 700,
-                    y: n.position.y * 700
+                    x: n.position.x * 2,
+                    y: n.position.y * 2
                 },
                 data: {
                     node: n,
