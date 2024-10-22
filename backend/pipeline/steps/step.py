@@ -1,5 +1,4 @@
 import dataclasses
-import random
 import typing
 import uuid
 from abc import ABC
@@ -9,8 +8,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 import api_key
-from model.application_model import ApplicationModel
 import model.knowledge_graph as kg
+from model import meta_model
+from model.application_model import ApplicationModel
 from pipeline.llm_models import ModelInformation
 from pipeline.steps.utils import ParsedFile
 
@@ -59,9 +59,9 @@ class BasePipelineStep(ABC):
 
 class PromptCreation(BasePipelineStep):
     @staticmethod
-    def parse_entity_extraction_result(
-        result: str, type_aspect_mapping: typing.Dict[str, str]
-    ) -> typing.List[EntityResult]:
+    def parse_nodes(
+        result: str, entities: typing.Dict[str, meta_model.Entity]
+    ) -> typing.List[kg.Node]:
         result_list = []
         lines = result.splitlines()
 
@@ -74,13 +74,15 @@ class PromptCreation(BasePipelineStep):
                 print(f"Skipping line '{line}', not enough values separated by pipe!")
                 continue
             result_type, name = line_values
-            result = EntityResult(
-                id=f"n{i}",
+            entity = entities[result_type]
+            entity = kg.Node(
+                id=str(uuid.uuid4()),
                 type=result_type,
                 name=name,
-                aspect=type_aspect_mapping[result_type],
+                entity=entity,
+                position=(0, 0),
             )
-            result_list.append(result)
+            result_list.append(entity)
 
         return result_list
 
@@ -109,9 +111,9 @@ class PromptCreation(BasePipelineStep):
     def extract_entities_from_file(
         model: ModelInformation,
         entity_descriptions: str,
-        type_aspect_mapping: typing.Dict[str, str],
+        entities: typing.Dict[str, meta_model.Entity],
         parsed_file: ParsedFile,
-    ) -> typing.List[EntityResult]:
+    ) -> typing.List[kg.Node]:
         model = ChatOpenAI(model=model.model_name)
 
         with open(
@@ -126,22 +128,20 @@ class PromptCreation(BasePipelineStep):
         parser = StrOutputParser()
 
         chain = prompt_template | model | parser
-
-        return PromptCreation.parse_entity_extraction_result(
-            chain.invoke(
-                {
-                    "entity_descriptions_application_model": entity_descriptions,
-                    "text": parsed_file,
-                }
-            ),
-            type_aspect_mapping=type_aspect_mapping,
+        chat_result = chain.invoke(
+            {
+                "entity_descriptions_application_model": entity_descriptions,
+                "text": parsed_file,
+            }
         )
+
+        return PromptCreation.parse_nodes(chat_result, entities)
 
     @staticmethod
     def extract_relations_from_file(
         model: ModelInformation,
         relation_descriptions: str,
-        entities_to_use: typing.List[EntityResult],
+        entities_to_use: typing.List[kg.Node],
         parsed_file: ParsedFile,
     ):
         model = ChatOpenAI(model=model.model_name)
@@ -180,40 +180,25 @@ class PromptCreation(BasePipelineStep):
         self,
         model: ModelInformation,
         application_model: ApplicationModel,
+        current_graph: kg.Graph | None,
         parsed_file: ParsedFile,
     ) -> kg.Graph:
         api_key.set_llm_api_key(model=model.model_name)
-        extracted_entities = self.extract_entities_from_file(
+        extracted_nodes = self.extract_entities_from_file(
             model=model,
             entity_descriptions=application_model.get_entity_descriptions(),
-            type_aspect_mapping=application_model.get_type_aspect_mapping(),
             parsed_file=parsed_file,
+            entities={e.name: e for e in application_model.entities},
         )
 
         extracted_relations = self.extract_relations_from_file(
             model=model,
             relation_descriptions=application_model.get_relation_descriptions(),
-            entities_to_use=extracted_entities,
+            entities_to_use=extracted_nodes,
             parsed_file=parsed_file,
         )
 
-        aspects: typing.Dict[str, kg.Aspect] = {}
-
-        nodes: typing.Dict[str, kg.Node] = {}
-        for e in extracted_entities:
-            if e.aspect not in aspects.keys():
-                # TODO: how to load this? from application model?
-                aspects[e.aspect] = kg.Aspect(
-                    name=e.aspect, shape="rect", color="default"
-                )
-
-            nodes[e.id] = kg.Node(
-                id=str(uuid.uuid4()),
-                name=e.name,
-                type=e.type,
-                position=(random.random() * 500, random.random() * 500),
-                aspect=aspects[e.aspect],
-            )
+        nodes: typing.Dict[str, kg.Node] = {n.id: n for n in extracted_nodes}
 
         edges: typing.List[kg.Edge] = []
         for r in extracted_relations:

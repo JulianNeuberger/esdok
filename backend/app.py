@@ -82,16 +82,20 @@ def extract_knowledge_graph():
     application_model = ApplicationModel.load(application_model_path)
 
     prompt_step = PromptCreation()
-    graph = prompt_step.run(
-        model=Models.GPT_4o_2024_05_13.value,
-        application_model=application_model,
-        parsed_file=file_content,
-    )
 
+    existing_graph: kg.Graph | None = None
     results_file_path = model_instances_directory / f"{meta_model_name}.json"
     if os.path.isfile(results_file_path):
         existing_graph = kg.Graph.load(results_file_path)
         existing_graph.save(str(results_file_path) + ".bkp")
+
+    graph = prompt_step.run(
+        model=Models.GPT_4o_2024_05_13.value,
+        application_model=application_model,
+        parsed_file=file_content,
+        current_graph=existing_graph,
+    )
+    if existing_graph is not None:
         graph = existing_graph.merge(
             graph,
             match_edge=match.strict_edge_matcher,

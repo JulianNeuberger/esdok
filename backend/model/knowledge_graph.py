@@ -5,6 +5,8 @@ from pathlib import Path
 
 import networkx as nx
 
+from model import meta_model
+
 
 @dataclasses.dataclass(frozen=True)
 class Graph:
@@ -148,16 +150,14 @@ class Aspect:
 class Node:
     id: str
     name: str
-    type: str
     position: typing.Tuple[float, float] | None
-    aspect: Aspect | None
+    entity: meta_model.Entity
 
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
-            "type": self.type,
-            "aspect": self.aspect.to_dict(),
+            "entity": self.entity.to_dict(),
             "position": {
                 "x": self.position[0],
                 "y": self.position[1],
@@ -169,15 +169,12 @@ class Node:
         return Node(
             id=d["id"],
             name=d["name"],
-            type=d["type"],
             position=(d["position"]["x"], d["position"]["y"]),
-            aspect=Aspect.from_dict(d["aspect"]),
+            entity=meta_model.Entity.from_dict(d["entity"]),
         )
 
     def with_position(self, pos: typing.Tuple[float, float]) -> "Node":
-        return Node(
-            position=pos, aspect=self.aspect, type=self.type, name=self.name, id=self.id
-        )
+        return Node(position=pos, entity=self.entity, name=self.name, id=self.id)
 
 
 @dataclasses.dataclass(frozen=True, eq=True)

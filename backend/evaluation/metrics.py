@@ -1,47 +1,82 @@
+import collections
 import dataclasses
-import typing
-import json
 import difflib
-from evaluation.groundtruth_parser import GroundtruthMention, parse_manual_annotated_file
-from model.knowledge_graph import Graph, Node
+import json
+import pathlib
+import re
+import typing
+from collections import defaultdict
+
+import nltk
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-from collections import defaultdict
+
+from evaluation.groundtruth_parser import (
+    parse_manual_annotated_file,
+)
+from model.knowledge_graph import Graph
+
+
+@dataclasses.dataclass
+class MatchNode:
+    text: str
+    type: str
+    page: int
+    file: str
+
+
+@dataclasses.dataclass
+class MatchRelation:
+    pass
 
 
 @dataclasses.dataclass
 class Match:
-    extracted_mention: Node
-    ground_truth_mention: GroundtruthMention
+    prediction: MatchNode
+    ground_truth: MatchNode
     similarity: float
 
 
-def calculate_similarity(s1: str, s2: str) -> float:
+def char_similarity(s1: str, s2: str) -> float:
     return difflib.SequenceMatcher(None, s1, s2).ratio()
 
 
-def optimal_matching(extracted_mentions: typing.List[Node], ground_truth_mentions: typing.List[GroundtruthMention],
-                     similarity_dict: dict) -> typing.List[Match]:
-    len_extracted = len(extracted_mentions)
-    len_ground_truth = len(ground_truth_mentions)
+def token_similarity(s1: str, s2: str) -> float:
+    tokens_1 = nltk.tokenize.word_tokenize(s1)
+    tokens_2 = nltk.tokenize.word_tokenize(s2)
+    return difflib.SequenceMatcher(None, tokens_1, tokens_2).ratio()
 
-    if len_extracted > len_ground_truth:
-        for i in range(len_extracted - len_ground_truth):
-            ground_truth_mentions.append(GroundtruthMention(name=f'Dummy_GT_{i+1}', entity='', document='',
-                                                            start_page=-1, end_page=-1))
-    elif len_ground_truth > len_extracted:
-        for i in range(len_ground_truth - len_extracted):
-            extracted_mentions.append(Node(id=f'{i + 1}', name=f'Dummy_T_{i + 1}', type='Dummy', position=None, aspect=None))
+
+@dataclasses.dataclass
+class MatchResult:
+    matches: typing.List[Match]
+    missing: typing.List[MatchNode]
+    superfluous: typing.List[MatchNode]
+
+
+def optimal_matching(
+    predictions: typing.List[MatchNode],
+    ground_truth: typing.List[MatchNode],
+    similarity_dict: dict,
+) -> typing.List[Match]:
+    len_extracted = len(predictions)
+    len_ground_truth = len(ground_truth)
+
+    # pad with dummy nodes (None values)
+    if len_extracted < len_ground_truth:
+        predictions += [None] * (len_ground_truth - len_extracted)
+    if len_ground_truth < len_extracted:
+        ground_truth += [None] * (len_extracted - len_ground_truth)
 
     # Similarity matrix
-    cost_matrix = np.zeros((len(extracted_mentions), len(ground_truth_mentions)))
+    cost_matrix = np.zeros((len(predictions), len(ground_truth)))
 
-    for i, extracted_mention in enumerate(extracted_mentions):
-        for j, ground_truth_mention in enumerate(ground_truth_mentions):
-            if 'Dummy' in extracted_mention.name or 'Dummy' in ground_truth_mention.name:
+    for i, pred in enumerate(predictions):
+        for j, true in enumerate(ground_truth):
+            if pred is None or true is None:
                 similarity = 0.0
             else:
-                similarity = similarity_dict.get(extracted_mention.name, {}).get(ground_truth_mention.name, 0.0)
+                similarity = similarity_dict.get(pred.text, {}).get(true.text, 0.0)
             cost_matrix[i, j] = -similarity
 
     # Apply Hungarian Algorithm to find an optimal matching
@@ -50,48 +85,34 @@ def optimal_matching(extracted_mentions: typing.List[Node], ground_truth_mention
     # Build matches
     matches = []
     for i, j in zip(row_indices, col_indices):
-        extracted_mention = extracted_mentions[i]
-        ground_truth_mention = ground_truth_mentions[j]
+        pred = predictions[i]
+        true = ground_truth[j]
         similarity = -cost_matrix[i, j]
-        matches.append(Match(extracted_mention=extracted_mention,
-                             ground_truth_mention=ground_truth_mention,
-                             similarity=similarity))
+        matches.append(
+            Match(
+                pred,
+                true,
+                similarity=similarity,
+            )
+        )
 
     return matches
 
 
-def get_similarity_dictionary(extracted_mentions: typing.List[Node],
-                              ground_truth_mentions: typing.List[GroundtruthMention]) -> dict:
+def get_similarity_dictionary(
+    extracted_mentions: typing.List[MatchNode],
+    ground_truth_mentions: typing.List[MatchNode],
+) -> dict:
     similarities = defaultdict(dict)
 
     for extracted_mention in extracted_mentions:
-        extracted_name = extracted_mention.name
+        extracted_name = extracted_mention.text
         for ground_truth_mention in ground_truth_mentions:
-            ground_truth_name = ground_truth_mention.name
-            similarity = calculate_similarity(extracted_name, ground_truth_name)
+            ground_truth_name = ground_truth_mention.text
+            similarity = token_similarity(extracted_name, ground_truth_name)
             similarities[extracted_name][ground_truth_name] = similarity
 
     return dict(similarities)
-
-
-def count_match_types_regardless_of_entity_type(matches: typing.List[Match],
-                                                threshold: float = 0.8) -> typing.Tuple[int, int, int, int]:
-    correct_matches = 0     # Number of correct matches
-    incorrect_matches = 0   # Number of incorrect matches
-    not_matched = 0     # Number of ground truth mentions not found
-    over_matched = 0    # Number of extracted mentions that should not be found
-
-    for match in matches:
-        if 'Dummy' in match.extracted_mention.name:
-            over_matched += 1
-        elif 'Dummy' in match.ground_truth_mention.name:
-            not_matched += 1
-        elif calculate_similarity(match.extracted_mention.name, match.ground_truth_mention.name) > threshold:
-            correct_matches += 1
-        else:
-            incorrect_matches += 1
-
-    return correct_matches, incorrect_matches, not_matched, over_matched
 
 
 def calculate_precision(correct_matches: int, incorrect_matches: int) -> float:
@@ -113,25 +134,119 @@ def calculate_f1_score(precision: float, recall: float) -> float:
     return 0.0
 
 
-if __name__ == '__main__':
-    ground_truth = parse_manual_annotated_file(r'../files/groundtruth_result.csv')
+def print_matches(matches: typing.List[Match]):
+    for match in matches:
+        print(f"--- {match.similarity:.4f} ---------------------------")
+        if match.prediction is not None:
+            print(f"Pred: {match.prediction.text} ({match.prediction.type})")
+        else:
+            print(f"Pred: ---")
+        if match.ground_truth is not None:
+            ground_truth_text = match.ground_truth.text.replace("\n", "")
+            ground_truth_text = re.sub(r"\s{2,}", " ", ground_truth_text)
+            print(f"True: {ground_truth_text} ({match.ground_truth.type})")
+        else:
+            print(f"True: ---")
 
-    with open(r'../result/extracted_information.json', "r") as file:
-        extracted_mentions = Graph.from_dict(json.load(file))
 
-    sim_dict = get_similarity_dictionary(extracted_mentions.nodes, ground_truth)
+Stats = collections.namedtuple("Stats", ["num_ok", "num_wrong", "num_gold", "num_pred"])
 
-    matching = optimal_matching(extracted_mentions.nodes, ground_truth, sim_dict)
 
-    print("Matching:")
-    for match in matching:
-        print(match)
+def get_stats(
+    *,
+    predictions: typing.List[MatchNode],
+    ground_truth: typing.List[MatchNode],
+    matches: typing.List[Match],
+    threshold: float = 0.4,
+) -> Stats:
+    num_gold = len(ground_truth)
+    num_pred = len(predictions)
+    num_ok = 0
+    non_ok = 0
 
-    correct_m, incorrect_m, not_m, _ = count_match_types_regardless_of_entity_type(matching, 0.8)
+    for match in matches:
+        if match.prediction is None or match.ground_truth is None:
+            non_ok += 1
+            continue
 
-    precision = calculate_precision(correct_matches=correct_m, incorrect_matches=incorrect_m)
-    recall = calculate_recall(correct_matches=correct_m, not_matched=not_m)
+        if match.prediction.type != match.ground_truth.type:
+            non_ok += 1
+            continue
 
-    print(f'Precision: {precision}')
-    print(f'Recall: {recall}')
-    print(f'F1-Score: {calculate_f1_score(precision=precision, recall=recall)}')
+        if match.similarity < threshold:
+            non_ok += 1
+            continue
+
+        num_ok += 1
+
+    return Stats(num_ok=num_ok, num_wrong=non_ok, num_gold=num_gold, num_pred=num_pred)
+
+
+if __name__ == "__main__":
+
+    def main():
+        nltk.download("punkt_tab")
+
+        ground_truth_path = (
+            pathlib.Path(__file__).parent.parent.absolute() / "res" / "ground_truth.csv"
+        )
+        ground_truth_nodes = parse_manual_annotated_file(file_path=ground_truth_path)
+
+        knowledge_graph_path = (
+            pathlib.Path(__file__).parent.parent.absolute()
+            / "result"
+            / "model-instances"
+            / "simple.json"
+        )
+        with open(knowledge_graph_path, "r") as file:
+            graph = Graph.from_dict(json.load(file))
+
+        predictions = [
+            MatchNode(text=n.name, type=n.entity.name, page=0, file="")
+            for n in graph.nodes
+        ]
+        ground_truth = [
+            MatchNode(text=n.name, type=n.entity, page=0, file="")
+            for n in ground_truth_nodes
+        ]
+
+        sim_dict = get_similarity_dictionary(predictions.copy(), ground_truth.copy())
+
+        matches = optimal_matching(predictions.copy(), ground_truth.copy(), sim_dict)
+
+        match_threshold = 0.8
+        ok_matches = [m for m in matches if m.similarity > match_threshold]
+
+        print()
+        print(f"### > {match_threshold} #######################")
+        print_matches(ok_matches)
+        print()
+        print(f"### < {match_threshold} and > 0.5 #############")
+        print_matches([m for m in matches if 0.5 < m.similarity < match_threshold])
+        print()
+        print(f"### < 0.5 #####################################")
+        print_matches([m for m in matches if 0.0 < m.similarity < 0.5])
+        print()
+        print(f"### = 0.0 #####################################")
+        print_matches([m for m in matches if m.similarity == 0.0])
+
+        num_ok, num_wrong, num_gold, num_pred = get_stats(
+            predictions=predictions.copy(),
+            ground_truth=ground_truth.copy(),
+            matches=matches,
+        )
+
+        precision = num_ok / num_pred if num_pred > 0 else 0.0
+        recall = num_ok / num_gold if num_gold > 0 else 0.0
+        f1 = calculate_f1_score(precision=precision, recall=recall)
+
+        print()
+        print(f"Ok: {num_ok}, pred: {num_pred}, gold: {num_gold}")
+
+        print()
+        print()
+        print(f"Precision:  {precision:.2%}")
+        print(f"Recall:     {recall:.2%}")
+        print(f"F1-Score:   {f1:.2%}")
+
+    main()
