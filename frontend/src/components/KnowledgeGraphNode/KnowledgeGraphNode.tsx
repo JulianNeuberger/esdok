@@ -41,7 +41,10 @@ const KnowledgeGraphNode = ({data}: Props) => {
             <Handle type={"source"} position={Position.Top} />
             <Handle type={"target"} position={Position.Top} />
             <div style={{fontStyle: "italic", fontWeight: "bold", fontSize: ".7em"}}>
-                {node.type}
+                {node.entity.name}
+            </div>
+            <div style={{fontStyle: "italic", fontSize: ".7em"}}>
+                {node.source.file} (p. {node.source.pageStart} - {node.source.pageEnd})
             </div>
             <div>
                 {node.name}

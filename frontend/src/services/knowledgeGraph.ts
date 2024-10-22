@@ -1,11 +1,17 @@
 import {Entity} from "./metaModelService";
 
+export interface DataSource {
+    file: string;
+    pageStart: number;
+    pageEnd: number;
+}
+
 export interface Node {
     id: string;
     name: string;
-    type: string;
     entity: Entity;
     position: {x: number, y: number};
+    source: DataSource;
 }
 
 export interface Edge {
