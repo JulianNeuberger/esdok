@@ -1,3 +1,4 @@
+import dataclasses
 import typing
 import json
 import difflib
@@ -5,114 +6,87 @@ from evaluation.groundtruth_parser import GroundtruthMention, parse_manual_annot
 from model.knowledge_graph import Graph, Node
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from collections import defaultdict
+
+
+@dataclasses.dataclass
+class Match:
+    extracted_mention: Node
+    ground_truth_mention: GroundtruthMention
+    similarity: float
 
 
 def calculate_similarity(s1: str, s2: str) -> float:
     return difflib.SequenceMatcher(None, s1, s2).ratio()
 
-def optimal_matching(extracted_mentions, groundtruth_mentions, similarity_dict):
-    # Bestimmen der Längenunterschiede
+
+def optimal_matching(extracted_mentions: typing.List[Node], ground_truth_mentions: typing.List[GroundtruthMention],
+                     similarity_dict: dict) -> typing.List[Match]:
     len_extracted = len(extracted_mentions)
-    len_groundtruth = len(groundtruth_mentions)
+    len_ground_truth = len(ground_truth_mentions)
 
-    if len_extracted > len_groundtruth:
-        # Füge Dummy-Elemente zur Groundtruth-Liste hinzu
-        for i in range(len_extracted - len_groundtruth):
-            groundtruth_mentions.append(GroundtruthMention(f'Dummy_GT_{i+1}', None, None, None, None))
-    elif len_groundtruth > len_extracted:
-        # Füge Dummy-Elemente zur Extracted-Liste hinzu
-        for i in range(len_groundtruth - len_extracted):
-            extracted_mentions.append(Node(None, f'Dummy_Extracted_{i+1}', None, None, None))
+    if len_extracted > len_ground_truth:
+        for i in range(len_extracted - len_ground_truth):
+            ground_truth_mentions.append(GroundtruthMention(name=f'Dummy_GT_{i+1}', entity='', document='',
+                                                            start_page=-1, end_page=-1))
+    elif len_ground_truth > len_extracted:
+        for i in range(len_ground_truth - len_extracted):
+            extracted_mentions.append(Node(id=f'{i + 1}', name=f'Dummy_T_{i + 1}', type='Dummy', position=None, aspect=None))
 
-    # Jetzt sind beide Listen gleich lang
-    cost_matrix = np.zeros((len(extracted_mentions), len(groundtruth_mentions)))
+    # Similarity matrix
+    cost_matrix = np.zeros((len(extracted_mentions), len(ground_truth_mentions)))
 
-    extracted_names = [mention.name for mention in extracted_mentions]
-    groundtruth_names = [mention.name for mention in groundtruth_mentions]
-
-    for i, extracted_name in enumerate(extracted_names):
-        for j, gt_name in enumerate(groundtruth_names):
-            if "Dummy" in extracted_name or "Dummy" in gt_name:
-                similarity = 0.0  # Dummy-Elemente haben eine Ähnlichkeit von 0
+    for i, extracted_mention in enumerate(extracted_mentions):
+        for j, ground_truth_mention in enumerate(ground_truth_mentions):
+            if 'Dummy' in extracted_mention.name or 'Dummy' in ground_truth_mention.name:
+                similarity = 0.0
             else:
-                similarity = similarity_dict.get(extracted_name, {}).get(gt_name, 0.0)
+                similarity = similarity_dict.get(extracted_mention.name, {}).get(ground_truth_mention.name, 0.0)
             cost_matrix[i, j] = -similarity
 
-    # Verwenden des Hungarian Algorithmus, um das optimale Matching zu finden
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    # Apply Hungarian Algorithm to find an optimal matching
+    row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
-    # Matching Ergebnis ausgeben
-    matching = []
-    total_similarity = 0
-    for i, j in zip(row_ind, col_ind):
-        extracted_mention = extracted_names[i]
-        gt_mention = groundtruth_names[j]
-        similarity = -cost_matrix[i, j]  # Negatives Vorzeichen rückgängig machen
-        matching.append((extracted_mention, gt_mention, similarity))
-        total_similarity += similarity
+    # Build matches
+    matches = []
+    for i, j in zip(row_indices, col_indices):
+        extracted_mention = extracted_mentions[i]
+        ground_truth_mention = ground_truth_mentions[j]
+        similarity = -cost_matrix[i, j]
+        matches.append(Match(extracted_mention=extracted_mention,
+                             ground_truth_mention=ground_truth_mention,
+                             similarity=similarity))
 
-    return matching, total_similarity
-
-def optimal_matching_old(extracted_mentions, groundtruth_mentions, similarity_dict):
-    # todo: This code must be checked for correctness
-    # Erstellen der Kostenmatrix (negativ der Ähnlichkeiten, da wir minimieren wollen)
-    cost_matrix = np.zeros((len(extracted_mentions), len(groundtruth_mentions)))
-
-    # Erstelle eine Zuordnung der Indizes zu den Namen
-    extracted_names = [mention.name for mention in extracted_mentions]
-    groundtruth_names = [mention.name for mention in groundtruth_mentions]
-
-    for i, extracted_name in enumerate(extracted_names):
-        for j, gt_name in enumerate(groundtruth_names):
-            # Ähnlichkeit in die Matrix eintragen (negativ, weil wir maximieren wollen)
-            similarity = similarity_dict.get(extracted_name, {}).get(gt_name, 0.0)
-            cost_matrix[i, j] = -similarity
-
-    # Verwenden des Hungarian Algorithmus, um das optimale Matching zu finden
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-
-    # Matching Ergebnis ausgeben
-    matching = []
-    total_similarity = 0
-    for i, j in zip(row_ind, col_ind):
-        extracted_mention = extracted_names[i]
-        gt_mention = groundtruth_names[j]
-        similarity = -cost_matrix[i, j]  # Negatives Vorzeichen rückgängig machen
-        matching.append((extracted_mention, gt_mention, similarity))
-        total_similarity += similarity
-
-    return matching, total_similarity
+    return matches
 
 
 def get_similarity_dictionary(extracted_mentions: typing.List[Node],
-                   groundtruth_mentions: typing.List[GroundtruthMention]) -> dict:
-    similarities = {}
+                              ground_truth_mentions: typing.List[GroundtruthMention]) -> dict:
+    similarities = defaultdict(dict)
+
     for extracted_mention in extracted_mentions:
-        for gt_mention in groundtruth_mentions:
-            similarity = calculate_similarity(extracted_mention.name, gt_mention.name)
+        extracted_name = extracted_mention.name
+        for ground_truth_mention in ground_truth_mentions:
+            ground_truth_name = ground_truth_mention.name
+            similarity = calculate_similarity(extracted_name, ground_truth_name)
+            similarities[extracted_name][ground_truth_name] = similarity
 
-            if extracted_mention.name not in similarities.keys():
-                similarities[extracted_mention.name] = {}
-            if gt_mention.name not in similarities[extracted_mention.name]:
-                similarities[extracted_mention.name][gt_mention.name] = 0.0
-            similarities[extracted_mention.name][gt_mention.name] = similarity
-
-    print(similarities)
-    return similarities
+    return dict(similarities)
 
 
-def calculate_metric(matching, threshold):
-    correct_matches = 0
-    incorrect_matches = 0
-    not_matched = 0
-    over_matched = 0
+def count_match_types_regardless_of_entity_type(matches: typing.List[Match],
+                                                threshold: float = 0.8) -> typing.Tuple[int, int, int, int]:
+    correct_matches = 0     # Number of correct matches
+    incorrect_matches = 0   # Number of incorrect matches
+    not_matched = 0     # Number of ground truth mentions not found
+    over_matched = 0    # Number of extracted mentions that should not be found
 
-    for extracted, gt, similarity in matching:
-        if "Dummy" in extracted:
+    for match in matches:
+        if 'Dummy' in match.extracted_mention.name:
             over_matched += 1
-        elif "Dummy" in gt:
+        elif 'Dummy' in match.ground_truth_mention.name:
             not_matched += 1
-        elif calculate_similarity(extracted, gt) > threshold:
+        elif calculate_similarity(match.extracted_mention.name, match.ground_truth_mention.name) > threshold:
             correct_matches += 1
         else:
             incorrect_matches += 1
@@ -120,45 +94,44 @@ def calculate_metric(matching, threshold):
     return correct_matches, incorrect_matches, not_matched, over_matched
 
 
-def calculate_precision_recall_f1(correct_matches, incorrect_matches, not_matched):
+def calculate_precision(correct_matches: int, incorrect_matches: int) -> float:
     if correct_matches + incorrect_matches > 0:
-        precision = correct_matches / (correct_matches + incorrect_matches)
-    else:
-        precision = 0.0
+        return correct_matches / (correct_matches + incorrect_matches)
 
+    return 0.0
+
+
+def calculate_recall(correct_matches: int, not_matched: int) -> float:
     if correct_matches + not_matched > 0:
-        recall = correct_matches / (correct_matches + not_matched)
-    else:
-        recall = 0.0
+        return correct_matches / (correct_matches + not_matched)
+    return 0.0
 
+
+def calculate_f1_score(precision: float, recall: float) -> float:
     if precision + recall > 0:
-        f1_score = 2 * (precision * recall) / (precision + recall)
-    else:
-        f1_score = 0.0
-
-    return precision, recall, f1_score
+        return 2 * (precision * recall) / (precision + recall)
+    return 0.0
 
 
 if __name__ == '__main__':
     ground_truth = parse_manual_annotated_file(r'../files/groundtruth_result.csv')
-    #print(ground_truth)
 
     with open(r'../result/extracted_information.json', "r") as file:
-            extracted_mentions = Graph.from_dict(json.load(file))
-    ground_truth_simple = [g.name for g in ground_truth]
-    extracted_simple = [e.name for e in extracted_mentions.nodes]
+        extracted_mentions = Graph.from_dict(json.load(file))
 
     sim_dict = get_similarity_dictionary(extracted_mentions.nodes, ground_truth)
 
-    matching, total_similarity = optimal_matching(extracted_mentions.nodes, ground_truth, sim_dict)
+    matching = optimal_matching(extracted_mentions.nodes, ground_truth, sim_dict)
 
     print("Matching:")
     for match in matching:
-        print(f"{match[0]} matched with {match[1]} (Similarity: {match[2]})")
+        print(match)
 
-    print(f"Total Similarity: {total_similarity}")
+    correct_m, incorrect_m, not_m, _ = count_match_types_regardless_of_entity_type(matching, 0.8)
 
-    correct_matches, incorrect_matches, not_matched, over_matched = calculate_metric(matching, 0.8)
-    print(not_matched)
-    print(calculate_precision_recall_f1(correct_matches, incorrect_matches, not_matched))
+    precision = calculate_precision(correct_matches=correct_m, incorrect_matches=incorrect_m)
+    recall = calculate_recall(correct_matches=correct_m, not_matched=not_m)
 
+    print(f'Precision: {precision}')
+    print(f'Recall: {recall}')
+    print(f'F1-Score: {calculate_f1_score(precision=precision, recall=recall)}')
