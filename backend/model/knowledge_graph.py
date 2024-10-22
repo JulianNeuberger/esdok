@@ -149,8 +149,8 @@ class Node:
     id: str
     name: str
     type: str
-    position: typing.Tuple[float, float]
-    aspect: Aspect
+    position: typing.Tuple[float, float] | None
+    aspect: Aspect | None
 
     def to_dict(self):
         return {
