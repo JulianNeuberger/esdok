@@ -7,6 +7,7 @@ import "./KnowledgeGraphNode.css";
 
 
 export interface Props {
+    [key: string]: unknown;
     data: {
         node: KgNode,
         color?: string;
@@ -20,7 +21,6 @@ export interface Props {
 const KnowledgeGraphNode = ({data}: Props) => {
     const node = data.node;
     const shape = data.shape || "rounded";
-    console.log(`Redraw ${data.node.name}`)
 
     return (
         <div

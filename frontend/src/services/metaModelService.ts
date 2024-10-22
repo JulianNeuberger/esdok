@@ -36,17 +36,18 @@ export interface MetaModel {
 
 export class MetaModelService {
 
-    public constructor() {
-
-    }
-
-    public loadAspects = async (): Promise<Aspect[]> => {
-        const response = await fetch(" http://127.0.0.1:5000/model/aspect");
+    public listMetaModels = async (): Promise<string[]> => {
+        const response = await fetch(` http://127.0.0.1:5000/model/`);
         return await response.json();
     }
 
-    public patchModel = async (entities: Entity[], relations: Relation[]): Promise<boolean> => {
-        const response = await fetch("http://127.0.0.1:5000/model/", {
+    public loadAspects = async (name: string): Promise<Aspect[]> => {
+        const response = await fetch(` http://127.0.0.1:5000/model/${name}/aspect`);
+        return await response.json();
+    }
+
+    public patchModel = async (name: string, entities: Entity[], relations: Relation[]): Promise<boolean> => {
+        const response = await fetch(`http://127.0.0.1:5000/model/${name}/`, {
             method: "PATCH",
             body: JSON.stringify({
                 "entities": entities,
@@ -61,8 +62,8 @@ export class MetaModelService {
         return json["success"];
     }
 
-    public loadModel = async (): Promise<MetaModel | undefined> => {
-        const response = await fetch("http://127.0.0.1:5000/model/");
+    public loadModel = async (name: string): Promise<MetaModel | undefined> => {
+        const response = await fetch(`http://127.0.0.1:5000/model/${name}/`);
         const json = await response.json();
         if(!Object.hasOwn(json, "entities")) {
             return undefined;
@@ -73,11 +74,11 @@ export class MetaModelService {
         return json;
     }
 
-    public extract = async (file: File): Promise<boolean> => {
+    public extract = async (name: string, file: File): Promise<boolean> => {
         const data = new FormData();
         data.append("file", file);
 
-        const response = await fetch(" http://127.0.0.1:5000/model/extract", {
+        const response = await fetch(` http://127.0.0.1:5000/model/${name}/extract`, {
             method: "POST",
             body: data
         });

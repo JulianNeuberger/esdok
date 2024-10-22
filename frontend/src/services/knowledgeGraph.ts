@@ -1,6 +1,6 @@
 interface Aspect {
     name: string;
-    shape: string;
+    shape: "rect" | "parallelogram" | "rounded" | undefined;
     color: string;
 }
 
@@ -26,12 +26,13 @@ export interface KnowledgeGraph {
 
 export class KnowledgeGraphService {
 
-    public constructor() {
-
+    public listGraphs = async (): Promise<string[]> => {
+        const response = await fetch(` http://127.0.0.1:5000/graph/`);
+        return response.json();
     }
 
-    public load = async (): Promise<KnowledgeGraph | undefined> => {
-        const response = await fetch(" http://127.0.0.1:5000/graph/", {
+    public load = async (metaModel: string): Promise<KnowledgeGraph | undefined> => {
+        const response = await fetch(` http://127.0.0.1:5000/graph/${metaModel}/`, {
             method: "GET"
         });
         const json = await response.json();
@@ -44,9 +45,10 @@ export class KnowledgeGraphService {
         return json;
     }
 
-    public extract = async (file: File): Promise<boolean> => {
+    public extract = async (file: File, metaModel: string): Promise<boolean> => {
         const data = new FormData();
         data.append("file", file);
+        data.append("metaModel", metaModel);
 
         const response = await fetch(" http://127.0.0.1:5000/graph/extract/", {
             method: "POST",
@@ -57,16 +59,16 @@ export class KnowledgeGraphService {
         return json["success"];
     }
 
-    public layout = async () => {
-        const response = await fetch(" http://127.0.0.1:5000/graph/layout/", {
+    public layout = async (metaModel: string) => {
+        const response = await fetch(` http://127.0.0.1:5000/graph/${metaModel}/layout/`, {
             method: "GET",
         });
         const json = await response.json();
         return json["success"];
     }
 
-    public delete = async () => {
-        await fetch("http://127.0.0.1:5000/graph/", {
+    public delete = async (metaModel: string) => {
+        await fetch(`http://127.0.0.1:5000/graph/${metaModel}/`, {
             method: "DELETE"
         });
     }

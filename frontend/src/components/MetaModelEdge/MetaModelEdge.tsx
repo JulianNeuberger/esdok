@@ -5,7 +5,7 @@ import {CloseOutlined, DownOutlined, SaveOutlined} from "@ant-design/icons";
 import {Button, Form, Input} from "antd";
 import TextArea from "antd/es/input/TextArea";
 
-const MetaModelEdge: FC<EdgeProps<Edge<{ relation: Relation, persisted: boolean }>>> = ({
+const MetaModelEdge: FC<EdgeProps<Edge<{ relation: Relation, persisted: boolean, metaModel: string }>>> = ({
    id,
    sourceX,
    sourceY,
@@ -69,10 +69,10 @@ const MetaModelEdge: FC<EdgeProps<Edge<{ relation: Relation, persisted: boolean 
                     <Button
                         type={"primary"}
                         onClick={async () => {
-                            console.log(relation);
+                            if(!data?.metaModel) return;
                             if(!relation) return;
                             setIsLoading(true);
-                            await metaModelService.patchModel([], [relation])
+                            await metaModelService.patchModel(data.metaModel, [], [relation])
                             setIsLoading(false);
                         }}
                         disabled={!relation || isLoading}

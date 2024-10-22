@@ -3,7 +3,7 @@ import {Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesStat
 import {Edge as KgEdge, Node as KgNode} from "../../services/knowledgeGraph";
 
 import '@xyflow/react/dist/style.css';
-import KnowledgeGraphNode from "../KnowledgeGraphNode/KnowledgeGraphNode";
+import KnowledgeGraphNode, {Props as KnowledgeGraphNodeProps} from "../KnowledgeGraphNode/KnowledgeGraphNode";
 
 const nodeTypes = {"kg-node": KnowledgeGraphNode};
 
@@ -15,7 +15,7 @@ interface Props {
 }
 
 const InteractiveKnowledgeGraph = (props: Props) => {
-    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node<KnowledgeGraphNodeProps["data"]>>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     const isHighlighted = (node: KgNode) => {

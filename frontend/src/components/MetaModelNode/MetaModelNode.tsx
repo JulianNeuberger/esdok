@@ -2,7 +2,7 @@ import React from "react";
 
 import {Aspect, Entity, MetaModelService} from "../../services/metaModelService";
 import {Button, Select, Space} from "antd";
-import {CloseOutlined, DownOutlined, SaveFilled} from "@ant-design/icons";
+import {CloseOutlined, DownOutlined} from "@ant-design/icons";
 import {Handle, Position} from "@xyflow/react";
 import TextArea from "antd/es/input/TextArea";
 
@@ -12,6 +12,7 @@ interface Props  {
     data: {
         entity: Entity;
         aspects: Aspect[];
+        metaModel: string;
     };
 }
 
@@ -59,7 +60,8 @@ const MetaModelNode = ({ data }: Props) => {
                     className={"save"}
                     type={"primary"}
                     onClick={async () => {
-                        await metaModelService.patchModel([entity], [])
+                        if(!data?.metaModel) return;
+                        await metaModelService.patchModel(data.metaModel, [entity], [])
                     }}
                 >
                     Save

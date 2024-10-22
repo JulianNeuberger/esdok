@@ -3,7 +3,7 @@ import pathlib
 
 import flask
 from flask import Flask, request
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 
 import model.knowledge_graph as kg
 from model import match
@@ -17,23 +17,35 @@ from pipeline.steps.step import PromptCreation
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-application_model_path = (
-    pathlib.Path(__file__).parent.absolute() / "result" / "metamodel.json"
+application_models_directory = (
+    pathlib.Path(__file__).parent.absolute() / "result" / "application-models"
 )
-results_file_path = (
-    pathlib.Path(__file__).parent.absolute() / "result" / "extracted_information.json"
+application_models_directory.mkdir(exist_ok=True)
+
+model_instances_directory = (
+    pathlib.Path(__file__).parent.absolute() / "result" / "model-instances"
 )
+model_instances_directory.mkdir(exist_ok=True)
 
 
 @app.route("/graph/", methods=["GET"])
-def load_knowledge_graph():
+def list_knowledge_graphs():
+    graph_files = os.listdir(model_instances_directory)
+    graphs = [os.path.splitext(p) for p in graph_files]
+    return [name for name, ext in graphs if ext == ".json"]
+
+
+@app.route("/graph/<meta_model_name>/", methods=["GET"])
+def load_knowledge_graph(meta_model_name: str):
+    results_file_path = model_instances_directory / f"{meta_model_name}.json"
     if not os.path.isfile(results_file_path):
         flask.abort(404)
     return kg.Graph.load(results_file_path).to_dict()
 
 
-@app.route("/graph/", methods=["DELETE"])
-def delete_graph():
+@app.route("/graph/<meta_model_name>/", methods=["DELETE"])
+def delete_graph(meta_model_name: str):
+    results_file_path = model_instances_directory / f"{meta_model_name}.json"
     if os.path.isfile(results_file_path):
         os.replace(
             results_file_path,
@@ -42,8 +54,9 @@ def delete_graph():
     return {"success": True}
 
 
-@app.route("/graph/layout/", methods=["GET"])
-def layout_graph():
+@app.route("/graph/<meta_model_name>/layout/", methods=["GET"])
+def layout_graph(meta_model_name: str):
+    results_file_path = model_instances_directory / f"{meta_model_name}.json"
     graph = kg.Graph.load(results_file_path)
     graph = graph.layout()
     graph.save(results_file_path)
@@ -53,6 +66,10 @@ def layout_graph():
 @app.route("/graph/extract/", methods=["POST"])
 def extract_knowledge_graph():
     file = request.files["file"]
+
+    meta_model_name = request.form.get("metaModel")
+    application_model_path = application_models_directory / f"{meta_model_name}.json"
+
     loading_step = FileLoader()
 
     with open("file.pdf", "wb") as f:
@@ -71,6 +88,7 @@ def extract_knowledge_graph():
         parsed_file=file_content,
     )
 
+    results_file_path = model_instances_directory / f"{meta_model_name}.json"
     if os.path.isfile(results_file_path):
         existing_graph = kg.Graph.load(results_file_path)
         existing_graph.save(str(results_file_path) + ".bkp")
@@ -88,6 +106,9 @@ def extract_knowledge_graph():
 @app.route("/model/extract", methods=["POST"])
 def import_meta_model():
     file = request.files["file"]
+    data = request.json
+    model_name = data["name"]
+    application_model_path = application_models_directory / f"{model_name}.json"
     application_model = parse_xml_file(file.stream)
     application_model.layout()
     application_model.save(application_model_path)
@@ -96,17 +117,25 @@ def import_meta_model():
 
 
 @app.route("/model/", methods=["GET"])
-def load_meta_model():
-    # todo: load from database / file
+def list_meta_models():
+    meta_model_files = os.listdir(application_models_directory)
+    meta_models = [os.path.splitext(p) for p in meta_model_files]
+    return [name for name, ext in meta_models if ext == ".json"]
+
+
+@app.route("/model/<name>", methods=["GET"])
+def load_meta_model(name: str):
+    application_model_path = application_models_directory / f"{name}.json"
     if not os.path.isfile(application_model_path):
         flask.abort(404)
     return ApplicationModel.load(application_model_path).to_dict()
 
 
-@app.route("/model/", methods=["PATCH"])
-def patch_meta_model():
+@app.route("/model/<name>", methods=["PATCH"])
+def patch_meta_model(name: str):
     new_elements = request.json
 
+    application_model_path = application_models_directory / f"{name}.json"
     application_model = ApplicationModel.load(application_model_path)
 
     for e in new_elements["entities"]:
@@ -149,8 +178,9 @@ def patch_meta_model():
     }
 
 
-@app.route("/model/aspect", methods=["GET"])
-def get_aspects():
+@app.route("/model/<name>/aspects", methods=["GET"])
+def list_aspects(name: str):
+    application_model_path = application_models_directory / f"{name}.json"
     application_model = ApplicationModel.load(application_model_path)
     all_aspects = [e.aspect for e in application_model.entities]
     aspects_by_name = {}

@@ -9,8 +9,13 @@ import MetaModelNode from "../MetaModelNode/MetaModelNode";
 import Dragger from "antd/es/upload/Dragger";
 import {InboxOutlined} from "@ant-design/icons";
 
+const edgeTypes = {"meta-model-edge": MetaModelEdge};
+const nodeTypes = {"meta-model-node": MetaModelNode};
+
 
 const MetaModel = () => {
+    const [selectedModel, setSelectedModel] = React.useState<string | undefined>(undefined);
+    const [metaModels, setMetaModels] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [hasGraph, setHasGraph] = React.useState(true);
     const [entities, setEntities] = React.useState<Entity[]>([]);
@@ -23,25 +28,26 @@ const MetaModel = () => {
 
     const metaModelService = new MetaModelService();
 
-    const edgeTypes = React.useMemo(() => {
-        return {
-            "meta-model-edge": MetaModelEdge
-        };
-    }, []);
+    React.useEffect(() => {
+        const loadMetaModels = async () => {
+            setIsLoading(true);
+            const models = await metaModelService.listMetaModels();
+            setMetaModels(models);
+            setIsLoading(false);
+        }
 
-    const nodeTypes = React.useMemo(() => {
-        return {
-            "meta-model-node": MetaModelNode
-        };
+        loadMetaModels();
     }, []);
 
     const load = async () => {
+        if(!selectedModel) return;
+
         setIsLoading(true);
         let modelData;
         let aspectData: Aspect[];
         try {
-            modelData = await metaModelService.loadModel();
-            aspectData = await metaModelService.loadAspects();
+            modelData = await metaModelService.loadModel(selectedModel);
+            aspectData = await metaModelService.loadAspects(selectedModel);
         } catch (e) {
             setIsLoading(false);
             setHasGraph(false);
@@ -53,7 +59,7 @@ const MetaModel = () => {
             setIsLoading(false);
             return;
         }
-        console.log(aspectData)
+
         const entityNodes = modelData.entities.map(e => {
             return {
                 id: e.name,
@@ -89,8 +95,17 @@ const MetaModel = () => {
     }
 
     React.useEffect(() => {
+        const load = async ()=> {
+            const modelNames = await metaModelService.listMetaModels();
+            setMetaModels(modelNames);
+        }
+
         load();
     }, [])
+
+    React.useEffect(() => {
+        load();
+    }, [selectedModel])
 
     const renderFlow = () => {
         if(isLoading) {
@@ -126,7 +141,7 @@ const MetaModel = () => {
                             target: targetEntity
                         };
 
-                        await metaModelService.patchModel([], [newRelation]);
+                        await patchModel([], [newRelation]);
 
                         setEdges([...edges, {
                             id: edges.length.toString(),
@@ -178,9 +193,10 @@ const MetaModel = () => {
                             console.error("No file set, this should not happen.");
                             return;
                         }
+                        if(!selectedModel) return;
                         const file = umletinoFile;
                         setUmletinoFile(undefined);
-                        await metaModelService.extract(file);
+                        await metaModelService.extract(selectedModel, file);
                         await load();
                     }}
                 >
@@ -188,6 +204,11 @@ const MetaModel = () => {
                 </Button>
             </div>
         );
+    }
+
+    const patchModel = (entities: Entity[], relations: Relation[]) => {
+        if(!selectedModel) return;
+        return metaModelService.patchModel(selectedModel, entities, relations);
     }
 
     const renderNewNodeModal = () => {
@@ -202,7 +223,7 @@ const MetaModel = () => {
                         aspects={aspects}
                         entity={newEntity}
                         onChange={setNewEntity}
-                        onSubmit={(e) => metaModelService.patchModel([e], [])}
+                        onSubmit={(e) => patchModel([e], [])}
                     />
                 </div>
                 <div style={{borderRadius: 3, border: "solid 1px black", padding: "5px 15px", backgroundColor: "white", marginBottom: 25}}>
@@ -211,7 +232,7 @@ const MetaModel = () => {
                         entities={entities}
                         relation={newRelation}
                         onChange={setNewRelation}
-                        onSubmit={(r) => metaModelService.patchModel([], [r])}
+                        onSubmit={(r) => patchModel([], [r])}
                     />
                 </div>
             </div>
