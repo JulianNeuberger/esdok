@@ -75,6 +75,8 @@ def optimal_matching(
         for j, true in enumerate(ground_truth):
             if pred is None or true is None:
                 similarity = 0.0
+            elif pred.type.lower() != true.type.lower():
+                similarity = 0.0
             else:
                 similarity = similarity_dict.get(pred.text, {}).get(true.text, 0.0)
             cost_matrix[i, j] = -similarity
@@ -194,6 +196,7 @@ if __name__ == "__main__":
 
         knowledge_graph_path = (
             pathlib.Path(__file__).parent.parent.absolute()
+            / "res"
             / "result"
             / "model-instances"
             / "simple.json"

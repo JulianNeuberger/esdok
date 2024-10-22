@@ -18,14 +18,17 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 application_models_directory = (
-    pathlib.Path(__file__).parent.absolute() / "result" / "application-models"
+    pathlib.Path(__file__).parent.absolute() / "res" / "result" / "application-models"
 )
 application_models_directory.mkdir(exist_ok=True)
 
 model_instances_directory = (
-    pathlib.Path(__file__).parent.absolute() / "result" / "model-instances"
+    pathlib.Path(__file__).parent.absolute() / "res" / "result" / "model-instances"
 )
 model_instances_directory.mkdir(exist_ok=True)
+
+files_directory = pathlib.Path(__file__).parent.absolute() / "res" / "files"
+files_directory.mkdir(exist_ok=True)
 
 
 @app.route("/graph/", methods=["GET"])
@@ -72,9 +75,10 @@ def extract_knowledge_graph():
 
     loading_step = FileLoader()
 
-    with open("file.pdf", "wb") as f:
+    file_path = files_directory / file.filename
+    with open(file_path, "wb") as f:
         file.save(f)
-    parsed_files = loading_step.run(["file.pdf"])
+    parsed_files = loading_step.run([str(file_path.absolute())])
     if len(parsed_files) != 1:
         raise AssertionError("Parsing failed")
     file_content = parsed_files[0]

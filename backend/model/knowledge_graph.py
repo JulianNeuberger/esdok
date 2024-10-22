@@ -147,11 +147,32 @@ class Aspect:
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
+class DataSource:
+    file: str
+    page_start: int
+    page_end: int
+
+    def to_dict(self):
+        return {
+            "file": self.file,
+            "pageStart": self.page_start,
+            "pageEnd": self.page_end,
+        }
+
+    @staticmethod
+    def from_dict(d: dict) -> "DataSource":
+        return DataSource(
+            file=d["file"], page_start=d["pageStart"], page_end=d["pageEnd"]
+        )
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
 class Node:
     id: str
     name: str
     position: typing.Tuple[float, float] | None
     entity: meta_model.Entity
+    source: DataSource
 
     def to_dict(self):
         return {
@@ -162,6 +183,7 @@ class Node:
                 "x": self.position[0],
                 "y": self.position[1],
             },
+            "source": self.source.to_dict(),
         }
 
     @staticmethod
@@ -171,10 +193,17 @@ class Node:
             name=d["name"],
             position=(d["position"]["x"], d["position"]["y"]),
             entity=meta_model.Entity.from_dict(d["entity"]),
+            source=DataSource.from_dict(d["source"]),
         )
 
     def with_position(self, pos: typing.Tuple[float, float]) -> "Node":
-        return Node(position=pos, entity=self.entity, name=self.name, id=self.id)
+        return Node(
+            source=self.source,
+            position=pos,
+            entity=self.entity,
+            name=self.name,
+            id=self.id,
+        )
 
 
 @dataclasses.dataclass(frozen=True, eq=True)

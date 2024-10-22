@@ -16,11 +16,26 @@ from pipeline.steps.utils import ParsedFile
 
 
 @dataclasses.dataclass
+class DocumentPosition:
+    start_page: int
+    end_page: int
+
+    def to_dict(self):
+        return {"start_page": self.start_page, "end_page": self.end_page}
+
+    @staticmethod
+    def from_dict(d: dict):
+        return DocumentPosition(start_page=d["start_page"], end_page=d["end_page"])
+
+
+@dataclasses.dataclass
 class EntityResult:
     id: str
     type: str
     name: str
     aspect: str
+    document: str
+    document_position: DocumentPosition
 
     def to_dict(self) -> typing.Dict[str, str]:
         return {
@@ -28,6 +43,8 @@ class EntityResult:
             "type": self.type,
             "name": self.name,
             "aspect": self.aspect,
+            "document": self.document,
+            "document_position": self.document_position.to_dict(),
         }
 
 
@@ -60,7 +77,7 @@ class BasePipelineStep(ABC):
 class PromptCreation(BasePipelineStep):
     @staticmethod
     def parse_nodes(
-        result: str, entities: typing.Dict[str, meta_model.Entity]
+        result: str, entities: typing.Dict[str, meta_model.Entity], file: str
     ) -> typing.List[kg.Node]:
         result_list = []
         lines = result.splitlines()
@@ -70,19 +87,23 @@ class PromptCreation(BasePipelineStep):
                 print(f"Skipping line '{line}', missing separator pipe!")
                 continue
             line_values = line.split("|")
-            if len(line_values) != 2:
+            if len(line_values) != 4:
                 print(f"Skipping line '{line}', not enough values separated by pipe!")
                 continue
-            result_type, name = line_values
+            result_type, name, start_page, end_page = line_values
             entity = entities[result_type]
-            entity = kg.Node(
-                id=str(uuid.uuid4()),
-                type=result_type,
+            node = kg.Node(
+                id=f"n{i}",
                 name=name,
                 entity=entity,
                 position=(0, 0),
+                source=kg.DataSource(
+                    file=file,
+                    page_start=start_page,
+                    page_end=end_page,
+                ),
             )
-            result_list.append(entity)
+            result_list.append(node)
 
         return result_list
 
@@ -135,7 +156,7 @@ class PromptCreation(BasePipelineStep):
             }
         )
 
-        return PromptCreation.parse_nodes(chat_result, entities)
+        return PromptCreation.parse_nodes(chat_result, entities, file=parsed_file.name)
 
     @staticmethod
     def extract_relations_from_file(
@@ -159,7 +180,7 @@ class PromptCreation(BasePipelineStep):
         for entity in entities_to_use:
             formatted_entities_to_use = (
                 formatted_entities_to_use
-                + f"({entity.id}, {entity.type}, {entity.name})\n"
+                + f"({entity.id}, {entity.entity.name}, {entity.name})\n"
             )
 
         parser = StrOutputParser()
@@ -201,15 +222,16 @@ class PromptCreation(BasePipelineStep):
         nodes: typing.Dict[str, kg.Node] = {n.id: n for n in extracted_nodes}
 
         edges: typing.List[kg.Edge] = []
-        for r in extracted_relations:
-            edges.append(
-                kg.Edge(
-                    id=str(uuid.uuid4()),
-                    type=r.name,
-                    source=nodes[r.source],
-                    target=nodes[r.target],
+        if len(extracted_relations) > 0:
+            for r in extracted_relations:
+                edges.append(
+                    kg.Edge(
+                        id=str(uuid.uuid4()),
+                        type=r.name,
+                        source=nodes[r.source],
+                        target=nodes[r.target],
+                    )
                 )
-            )
 
         graph = kg.Graph(
             nodes=list(nodes.values()),
