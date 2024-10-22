@@ -21,6 +21,8 @@ class EntityResult:
     type: str
     name: str
     aspect: str
+    start_page: int
+    end_page: int
 
     def to_dict(self) -> typing.Dict[str, str]:
         return {
@@ -28,6 +30,8 @@ class EntityResult:
             "type": self.type,
             "name": self.name,
             "aspect": self.aspect,
+            "start_page": self.start_page,
+            "end_page": self.end_page
         }
 
 
@@ -70,15 +74,17 @@ class PromptCreation(BasePipelineStep):
                 print(f"Skipping line '{line}', missing separator pipe!")
                 continue
             line_values = line.split("|")
-            if len(line_values) != 2:
+            if len(line_values) != 4:
                 print(f"Skipping line '{line}', not enough values separated by pipe!")
                 continue
-            result_type, name = line_values
+            result_type, name, start_page, end_page = line_values
             result = EntityResult(
                 id=f"n{i}",
                 type=result_type,
                 name=name,
                 aspect=type_aspect_mapping[result_type],
+                start_page=start_page,
+                end_page=end_page
             )
             result_list.append(result)
 
