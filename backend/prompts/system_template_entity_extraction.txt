@@ -3,17 +3,21 @@ text sources and would like that you extract all entities of the types described
 
 {entity_descriptions_application_model}
 
-Here is some important information: Please extract only entities of the types defined above. Nothing else.
+Here is some important information: Please extract only entities of the types defined above. Nothing else. It is okay to produce
+duplicates, i.e., if an entities occurs several time, please extract all of its occurrences. Within the next the start of a new page is indicated
+by PAGE <page number>.
 The output should be formatted as a string following the schema below. Each information found should be outputted
-on a new line (seperator: \n). Each line consists of the name of the type, seperated by | and the particular entity of this type.
+on a new line (seperator: \n).
+Each line consists of the name of the type, the particular entity of this type, and the page (expressed by starting page and end page) where
+the entity was found. The four information are seperated by |.
 
 An example of a valid output consisting is:
-Tool|Fork
-Actor|Peter
-Actor|Supervisor
-Tool|Car
-Task|Melting
-Task|Check form
+Tool|Fork|3|4
+Actor|Peter|3|3
+Actor|Supervisor|2|2
+Tool|Car|1|2
+Task|Melting|1|1
+Task|Check form|2|2
 
 
 

@@ -151,6 +151,7 @@ class Node:
     type: str
     position: typing.Tuple[float, float] | None
     aspect: Aspect | None
+    document_position: typing.Tuple[int, int] | None
 
     def to_dict(self):
         return {
@@ -162,6 +163,10 @@ class Node:
                 "x": self.position[0],
                 "y": self.position[1],
             },
+            "document_position": {
+                "start_page": self.document_position[0],
+                "end_page": self.document_position[1]
+            }
         }
 
     @staticmethod
@@ -171,11 +176,13 @@ class Node:
             name=d["name"],
             type=d["type"],
             position=(d["position"]["x"], d["position"]["y"]),
+            document_position=(d["document_position"]["start_page"], d["document_position"]["end_page"]),
             aspect=Aspect.from_dict(d["aspect"]),
         )
 
     def with_position(self, pos: typing.Tuple[float, float]) -> "Node":
         return Node(
+            document_position=(self.document_position[0], self.document_position[1]),
             position=pos, aspect=self.aspect, type=self.type, name=self.name, id=self.id
         )
 
