@@ -5,14 +5,35 @@ from model.shape import Shape
 
 
 @dataclasses.dataclass
+class DocumentPosition:
+    start_page: int
+    end_page: int
+
+    def to_dict(self):
+        return {
+            "start_page": self.start_page,
+            "end_page": self.end_page
+        }
+
+    @staticmethod
+    def from_dict(d: dict):
+        return DocumentPosition(start_page=d["start_page"],
+                                end_page=d["end_page"])
+
+
+@dataclasses.dataclass
 class ExtractableElement:
     name: str
     description: str
+    document: str
+    reference: DocumentPosition
 
     def to_dict(self):
         return {
             "name": self.name,
             "description": self.description,
+            "document": self.document,
+            "reference": self.reference.to_dict()
         }
 
     @staticmethod
@@ -20,6 +41,8 @@ class ExtractableElement:
         return ExtractableElement(
             name=d["name"],
             description=d["description"],
+            document=d["document"],
+            reference=DocumentPosition.from_dict(d["reference"])
         )
 
 
@@ -76,6 +99,8 @@ class Entity(ExtractableElement):
     def from_dict(d: dict):
         return Entity(
             name=d["name"],
+            document=d["document"],
+            reference=DocumentPosition.from_dict(d["reference"]),
             description=d["description"],
             aspect=Aspect.from_dict(d["aspect"]),
             position=Position.from_dict(d["position"]),
@@ -97,6 +122,8 @@ class Relation(ExtractableElement):
     def from_dict(d: dict):
         return Relation(
             name=d["name"],
+            document=d["document"],
+            reference=DocumentPosition.from_dict(d["reference"]),
             description=d["description"],
             source=Entity.from_dict(d["source"]),
             target=Entity.from_dict(d["target"]),
