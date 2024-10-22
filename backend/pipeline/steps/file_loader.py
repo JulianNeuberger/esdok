@@ -35,7 +35,10 @@ class FileLoader(BasePipelineStep):
             print(f'The file {file_path} is not a PDF."')
             return None
         number_of_pages = len(reader.pages)
-        text = "\n".join(p.extract_text() for p in reader.pages)
+        text = ''
+        for i, p in enumerate(reader.pages):
+            text = text + p.extract_text() + "\n" + f"PAGE {i+1}:\n"
+
         return ParsedFile(
             name=FileLoader.extract_filename(file_path),
             number_of_pages=number_of_pages,
