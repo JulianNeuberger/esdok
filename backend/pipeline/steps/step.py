@@ -16,13 +16,30 @@ from pipeline.steps.utils import ParsedFile
 
 
 @dataclasses.dataclass
+class DocumentPosition:
+    start_page: int
+    end_page: int
+
+    def to_dict(self):
+        return {
+            "start_page": self.start_page,
+            "end_page": self.end_page
+        }
+
+    @staticmethod
+    def from_dict(d: dict):
+        return DocumentPosition(start_page=d["start_page"],
+                                end_page=d["end_page"])
+
+
+@dataclasses.dataclass
 class EntityResult:
     id: str
     type: str
     name: str
     aspect: str
-    start_page: int
-    end_page: int
+    document: str
+    document_position: DocumentPosition
 
     def to_dict(self) -> typing.Dict[str, str]:
         return {
@@ -30,8 +47,8 @@ class EntityResult:
             "type": self.type,
             "name": self.name,
             "aspect": self.aspect,
-            "start_page": self.start_page,
-            "end_page": self.end_page
+            "document": self.document,
+            "document_position": self.document_position.to_dict()
         }
 
 
@@ -83,8 +100,8 @@ class PromptCreation(BasePipelineStep):
                 type=result_type,
                 name=name,
                 aspect=type_aspect_mapping[result_type],
-                start_page=start_page,
-                end_page=end_page
+                document='',
+                document_position=DocumentPosition(start_page=start_page, end_page=end_page)
             )
             result_list.append(result)
 
@@ -218,19 +235,21 @@ class PromptCreation(BasePipelineStep):
                 name=e.name,
                 type=e.type,
                 position=(random.random() * 500, random.random() * 500),
+                document_position=(e.document_position.start_page, e.document_position.end_page),
                 aspect=aspects[e.aspect],
             )
 
         edges: typing.List[kg.Edge] = []
-        for r in extracted_relations:
-            edges.append(
-                kg.Edge(
-                    id=str(uuid.uuid4()),
-                    type=r.name,
-                    source=nodes[r.source],
-                    target=nodes[r.target],
+        if len(extracted_relations) > 0:
+            for r in extracted_relations:
+                edges.append(
+                    kg.Edge(
+                        id=str(uuid.uuid4()),
+                        type=r.name,
+                        source=nodes[r.source],
+                        target=nodes[r.target],
+                    )
                 )
-            )
 
         graph = kg.Graph(
             nodes=list(nodes.values()),
