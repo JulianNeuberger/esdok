@@ -1,14 +1,10 @@
-interface Aspect {
-    name: string;
-    shape: "rect" | "parallelogram" | "rounded" | undefined;
-    color: string;
-}
+import {Entity} from "./metaModelService";
 
 export interface Node {
     id: string;
     name: string;
     type: string;
-    aspect: Aspect;
+    entity: Entity;
     position: {x: number, y: number};
 }
 

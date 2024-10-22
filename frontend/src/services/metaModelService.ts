@@ -9,7 +9,7 @@ export interface Aspect {
     name: string;
     textColor: Color;
     shapeColor: Color;
-    shape: string;
+    shape: "rect" | "parallelogram" | "rounded" | undefined;
 }
 
 export interface Entity {

@@ -6,7 +6,6 @@ import {DeleteOutlined, InboxOutlined} from "@ant-design/icons";
 import {Button, Form, Input, Popconfirm, Select} from "antd";
 import InteractiveKnowledgeGraph from "../components/InteractiveKnowledgeGraph/InteractiveKnowledgeGraph";
 import {MetaModelService} from "../services/metaModelService";
-import metaModel from "../components/MetaModel/MetaModel";
 
 const knowledgeGraphService = new KnowledgeGraphService();
 const metaModelService = new MetaModelService();
@@ -79,7 +78,7 @@ const KnowledgeGraphView = ()=> {
             setIsLoading(false);
             return;
         }
-        const aspects = [...new Set(backendData.nodes.map(n => n.aspect))];
+        const aspects = [...new Set(backendData.nodes.map(n => n.entity.aspect))];
         setColorScheme(randomColorScheme(aspects.map(a => a.name)));
         setNodes(backendData.nodes);
         setEdges(backendData.edges);

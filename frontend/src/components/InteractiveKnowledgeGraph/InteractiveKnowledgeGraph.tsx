@@ -34,7 +34,7 @@ const InteractiveKnowledgeGraph = (props: Props) => {
             };
         }));
         setNodes(props.nodes.map(n => {
-            const {textColor, backgroundColor} = props.colorScheme[n.aspect.name];
+            const {textColor, backgroundColor} = props.colorScheme[n.entity.aspect.name];
             return {
                 id: n.id,
                 position: {
@@ -45,7 +45,7 @@ const InteractiveKnowledgeGraph = (props: Props) => {
                     node: n,
                     color: textColor,
                     backgroundColor: backgroundColor,
-                    shape: n.aspect.shape,
+                    shape: n.entity.aspect.shape,
                     opacity: isHighlighted(n) ? 1.0 : 0.5
                 },
                 type: "kg-node"
