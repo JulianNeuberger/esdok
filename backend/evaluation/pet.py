@@ -1,15 +1,64 @@
+import abc
 import collections
 import dataclasses
 import json
+import pathlib
 import typing
-
-import base
 
 
 @dataclasses.dataclass
-class PetDocument(
-    base.DocumentBase, base.HasMentions["PetMention"], base.HasRelations["PetRelation"]
-):
+class DocumentBase:
+    id: str
+    text: str
+
+    def __add__(self, other):
+        raise NotImplementedError()
+
+    def copy(self, clear: typing.List[str]):
+        raise NotImplementedError()
+
+
+TDocument = typing.TypeVar("TDocument", bound=DocumentBase)
+
+
+class BaseImporter(abc.ABC, typing.Generic[TDocument]):
+    def do_import(self) -> typing.List[TDocument]:
+        raise NotImplementedError()
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
+class HasType(abc.ABC):
+    type: str
+
+
+class HasCustomMatch:
+    def match(self, other: object) -> bool:
+        raise NotImplementedError()
+
+
+TMention = typing.TypeVar("TMention", bound=HasType)
+
+
+@dataclasses.dataclass
+class HasMentions(abc.ABC, typing.Generic[TMention]):
+    mentions: typing.List[TMention]
+
+
+TRelation = typing.TypeVar("TRelation", bound=HasType)
+
+
+@dataclasses.dataclass
+class HasRelations(abc.ABC, typing.Generic[TRelation]):
+    relations: typing.List[TRelation]
+
+
+class SupportsPrettyDump(abc.ABC, typing.Generic[TDocument]):
+    def pretty_dump(self, document: TDocument) -> str:
+        raise NotImplementedError()
+
+
+@dataclasses.dataclass
+class PetDocument(DocumentBase, HasMentions["PetMention"], HasRelations["PetRelation"]):
     category: str
     name: str
     tokens: typing.List["PetToken"]
@@ -151,7 +200,7 @@ class PetDocument(
 
 
 @dataclasses.dataclass(frozen=True)
-class PetMention(base.HasType, base.SupportsPrettyDump[PetDocument]):
+class PetMention(HasType, SupportsPrettyDump[PetDocument]):
     token_document_indices: typing.Tuple[int, ...]
 
     def copy(self) -> "PetMention":
@@ -196,7 +245,7 @@ class PetMention(base.HasType, base.SupportsPrettyDump[PetDocument]):
 
 
 @dataclasses.dataclass(frozen=True)
-class PetEntity(base.SupportsPrettyDump[PetDocument]):
+class PetEntity(SupportsPrettyDump[PetDocument]):
     mention_indices: typing.Tuple[int, ...]
 
     def copy(self) -> "PetEntity":
@@ -228,7 +277,7 @@ class PetEntity(base.SupportsPrettyDump[PetDocument]):
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class PetRelation(base.HasType, base.SupportsPrettyDump[PetDocument]):
+class PetRelation(HasType, SupportsPrettyDump[PetDocument]):
     head_mention_index: int
     tail_mention_index: int
 
@@ -321,7 +370,7 @@ class PetDictExporter:
         return {"mentionIndices": entity.mention_indices}
 
 
-class NewPetFormatImporter(base.BaseImporter[PetDocument]):
+class NewPetFormatImporter(BaseImporter[PetDocument]):
     class DictImporter:
         @staticmethod
         def read_tokens_from_dict(
@@ -397,7 +446,7 @@ class NewPetFormatImporter(base.BaseImporter[PetDocument]):
                 type=relation_dict["type"].lower().strip(),
             )
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str | pathlib.Path):
         self._file_path = file_path
 
     def do_import(self) -> typing.List[PetDocument]:

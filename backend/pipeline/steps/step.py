@@ -1,4 +1,6 @@
 import dataclasses
+from datetime import datetime
+import pathlib
 import typing
 import uuid
 from abc import ABC
@@ -7,7 +9,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-import api_key
 import model.knowledge_graph as kg
 from model import meta_model
 from model.application_model import ApplicationModel
@@ -77,7 +78,10 @@ class BasePipelineStep(ABC):
 class PromptCreation(BasePipelineStep):
     @staticmethod
     def parse_nodes(
-        result: str, entities: typing.Dict[str, meta_model.Entity], file: str
+        result: str,
+        entities: typing.Dict[str, meta_model.Entity],
+        file: str,
+        first_id: int,
     ) -> typing.List[kg.Node]:
         result_list = []
         lines = result.splitlines()
@@ -87,25 +91,53 @@ class PromptCreation(BasePipelineStep):
                 print(f"Skipping line '{line}', missing separator pipe!")
                 continue
             line_values = line.split("|")
-            if len(line_values) != 4:
+            if len(line_values) != 3:
                 print(f"Skipping line '{line}', not enough values separated by pipe!")
                 continue
-            result_type, name, start_page, end_page = line_values
+            result_type, name, page = line_values
+            if result_type not in entities.keys():
+                print(
+                    f"Skipping entity of type {result_type}, not a valid entity type."
+                )
+                continue
             entity = entities[result_type]
             node = kg.Node(
-                id=f"n{i}",
+                id=str(first_id + i),
                 name=name,
                 entity=entity,
                 position=(0, 0),
                 source=kg.DataSource(
                     file=file,
-                    page_start=start_page,
-                    page_end=end_page,
+                    page_start=page,
+                    page_end=page,
                 ),
             )
             result_list.append(node)
 
         return result_list
+
+    @staticmethod
+    def parse_entity_resolution(
+        original_nodes: typing.List[kg.Node], result: str
+    ) -> typing.List[typing.List[kg.Node]]:
+        nodes_by_id = {n.id: n for n in original_nodes}
+        entity_clusters: typing.List[typing.List[kg.Node]] = []
+        for line in result.splitlines():
+            ids = line.split("|")
+            entity_nodes: typing.List[kg.Node] = []
+            for raw_id in ids:
+                try:
+                    node = nodes_by_id[raw_id]
+                    entity_nodes.append(node)
+                    del nodes_by_id[raw_id]
+                except KeyError:
+                    print(
+                        f"Skipping id '{raw_id}', is not an id of any of the known nodes!"
+                    )
+            entity_clusters.append(entity_nodes)
+        for remaining_node in nodes_by_id.values():
+            entity_clusters.append([remaining_node])
+        return entity_clusters
 
     @staticmethod
     def parse_relation_extraction_result(result: str) -> typing.List[RelationResult]:
@@ -131,20 +163,55 @@ class PromptCreation(BasePipelineStep):
     @staticmethod
     def extract_entities_from_file(
         model: ModelInformation,
-        entity_descriptions: str,
         entities: typing.Dict[str, meta_model.Entity],
         parsed_file: ParsedFile,
+        first_id: int,
     ) -> typing.List[kg.Node]:
         model = ChatOpenAI(model=model.model_name)
 
-        with open(
-            "prompts/system_template_entity_extraction.txt", "r", encoding="utf8"
-        ) as f:
+        prompt_path = (
+            pathlib.Path(__file__).parent.parent.parent.absolute()
+            / "res"
+            / "prompts"
+            / "system_template_entity_extraction.txt"
+        )
+
+        with open(prompt_path, "r", encoding="utf8") as f:
             system_template = f.read()
 
         prompt_template = ChatPromptTemplate.from_messages(
             [("system", system_template), ("user", "{text}")]
         )
+
+        date_formatted = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+        entity_descriptions = "\n".join(
+            f"- *{e.name}*: {e.description}" for e in entities.values()
+        )
+
+        prompts_dir = (
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests"
+        )
+        prompts_dir.mkdir(exist_ok=True, parents=True)
+        prompt = prompt_template.invoke(
+            {
+                "entity_descriptions_application_model": entity_descriptions,
+                "text": parsed_file.content,
+            }
+        )
+
+        with open(prompts_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
+            for message in prompt.to_messages():
+                f.write("-" * 150)
+                f.write("\n")
+                f.write(f"{message.type}:\n")
+                f.write("-" * 150)
+                f.write("\n")
+                f.write(message.content)
+                f.write("\n")
+                f.write("-" * 150)
+                f.write("\n")
+                f.write("\n")
 
         parser = StrOutputParser()
 
@@ -152,50 +219,168 @@ class PromptCreation(BasePipelineStep):
         chat_result = chain.invoke(
             {
                 "entity_descriptions_application_model": entity_descriptions,
-                "text": parsed_file,
+                "text": parsed_file.content,
             }
         )
 
-        return PromptCreation.parse_nodes(chat_result, entities, file=parsed_file.name)
+        answers_dir = (
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers"
+        )
+        answers_dir.mkdir(exist_ok=True)
+
+        with open(answers_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
+            f.write(chat_result)
+
+        return PromptCreation.parse_nodes(
+            chat_result, entities, file=parsed_file.name, first_id=first_id
+        )
 
     @staticmethod
-    def extract_relations_from_file(
-        model: ModelInformation,
-        relation_descriptions: str,
-        entities_to_use: typing.List[kg.Node],
-        parsed_file: ParsedFile,
-    ):
+    def resolve_entities_from_file(
+        model: ModelInformation, entities: typing.List[kg.Node], parsed_file: ParsedFile
+    ) -> typing.List[typing.List[kg.Node]]:
         model = ChatOpenAI(model=model.model_name)
 
-        with open(
-            "prompts/system_template_relation_extraction.txt", "r", encoding="utf8"
-        ) as f:
+        prompt_path = (
+            pathlib.Path(__file__).parent.parent.parent.absolute()
+            / "res"
+            / "prompts"
+            / "system_template_entity_resolution.txt"
+        )
+
+        with open(prompt_path, "r", encoding="utf8") as f:
             system_template = f.read()
 
         prompt_template = ChatPromptTemplate.from_messages(
             [("system", system_template), ("user", "{text}")]
         )
 
-        formatted_entities_to_use = ""
-        for entity in entities_to_use:
-            formatted_entities_to_use = (
-                formatted_entities_to_use
-                + f"({entity.id}, {entity.entity.name}, {entity.name})\n"
-            )
+        date_formatted = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        prompts_dir = (
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests"
+        )
+        prompts_dir.mkdir(exist_ok=True, parents=True)
+
+        formatted_entities = "\n".join(
+            [f"{e.id}|{e.entity.name}|{e.name}" for e in entities]
+        )
+
+        prompt = prompt_template.invoke(
+            {
+                "entity_list": formatted_entities,
+                "text": parsed_file.content,
+            }
+        )
+
+        with open(prompts_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
+            for message in prompt.to_messages():
+                f.write("-" * 150)
+                f.write("\n")
+                f.write(f"{message.type}:\n")
+                f.write("-" * 150)
+                f.write("\n")
+                f.write(message.content)
+                f.write("\n")
+                f.write("-" * 150)
+                f.write("\n")
+                f.write("\n")
 
         parser = StrOutputParser()
 
         chain = prompt_template | model | parser
 
-        return PromptCreation.parse_relation_extraction_result(
-            chain.invoke(
-                {
-                    "relation_descriptions_application_model": relation_descriptions,
-                    "entities_to_use": formatted_entities_to_use,
-                    "text": parsed_file,
-                }
-            )
+        chat_result = chain.invoke(
+            {
+                "entity_list": formatted_entities,
+                "text": parsed_file.content,
+            }
         )
+
+        answers_dir = (
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers"
+        )
+        answers_dir.mkdir(exist_ok=True)
+
+        with open(answers_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
+            f.write(chat_result)
+
+        return PromptCreation.parse_entity_resolution(entities, chat_result)
+
+    @staticmethod
+    def extract_relations_from_file(
+        model: ModelInformation,
+        relation_descriptions: str,
+        entities: typing.List[kg.Node],
+        parsed_file: ParsedFile,
+    ):
+        model = ChatOpenAI(model=model.model_name)
+
+        prompt_path = (
+            pathlib.Path(__file__).parent.parent.parent.absolute()
+            / "res"
+            / "prompts"
+            / "system_template_relation_extraction.txt"
+        )
+
+        with open(prompt_path, "r", encoding="utf8") as f:
+            system_template = f.read()
+
+        prompt_template = ChatPromptTemplate.from_messages(
+            [("system", system_template), ("user", "{text}")]
+        )
+
+        date_formatted = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+        formatted_entities = "\n".join(
+            [f"{e.id}|{e.entity.name}|{e.name}" for e in entities]
+        )
+
+        prompts_dir = (
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests"
+        )
+        prompts_dir.mkdir(exist_ok=True, parents=True)
+        prompt = prompt_template.invoke(
+            {
+                "relation_descriptions_application_model": relation_descriptions,
+                "entities_to_use": formatted_entities,
+                "text": parsed_file.content,
+            }
+        )
+
+        with open(prompts_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
+            for message in prompt.to_messages():
+                f.write("-" * 150)
+                f.write("\n")
+                f.write(f"{message.type}:\n")
+                f.write("-" * 150)
+                f.write("\n")
+                f.write(message.content)
+                f.write("\n")
+                f.write("-" * 150)
+                f.write("\n")
+                f.write("\n")
+
+        parser = StrOutputParser()
+
+        chain = prompt_template | model | parser
+
+        chat_result = chain.invoke(
+            {
+                "relation_descriptions_application_model": relation_descriptions,
+                "entities_to_use": formatted_entities,
+                "text": parsed_file.content,
+            }
+        )
+
+        answers_dir = (
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers"
+        )
+        answers_dir.mkdir(exist_ok=True)
+
+        with open(answers_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
+            f.write(chat_result)
+
+        return PromptCreation.parse_relation_extraction_result(chat_result)
 
     def run(
         self,
@@ -204,39 +389,51 @@ class PromptCreation(BasePipelineStep):
         current_graph: kg.Graph | None,
         parsed_file: ParsedFile,
     ) -> kg.Graph:
-        api_key.set_llm_api_key(model=model.model_name)
         extracted_nodes = self.extract_entities_from_file(
             model=model,
-            entity_descriptions=application_model.get_entity_descriptions(),
             parsed_file=parsed_file,
             entities={e.name: e for e in application_model.entities},
+            first_id=0 if current_graph is None else len(current_graph.nodes),
+        )
+
+        all_nodes = extracted_nodes
+        if current_graph is not None:
+            all_nodes += current_graph.nodes
+
+        node_clusters = self.resolve_entities_from_file(
+            model=model, entities=all_nodes, parsed_file=parsed_file
         )
 
         extracted_relations = self.extract_relations_from_file(
             model=model,
             relation_descriptions=application_model.get_relation_descriptions(),
-            entities_to_use=extracted_nodes,
+            entities=extracted_nodes,
             parsed_file=parsed_file,
         )
 
-        nodes: typing.Dict[str, kg.Node] = {n.id: n for n in extracted_nodes}
+        nodes: typing.Dict[str, kg.Node] = {n.id: n for n in all_nodes}
 
         edges: typing.List[kg.Edge] = []
-        if len(extracted_relations) > 0:
-            for r in extracted_relations:
-                edges.append(
-                    kg.Edge(
-                        id=str(uuid.uuid4()),
-                        type=r.name,
-                        source=nodes[r.source],
-                        target=nodes[r.target],
-                    )
+        for r in extracted_relations:
+            edges.append(
+                kg.Edge(
+                    id=str(uuid.uuid4()),
+                    type=r.name,
+                    source=nodes[r.source],
+                    target=nodes[r.target],
                 )
+            )
 
         graph = kg.Graph(
-            nodes=list(nodes.values()),
+            nodes=all_nodes,
             edges=edges,
         )
+
+        # graph = graph.compact(
+        #     match_node=lambda n1, n2: any(
+        #         n1 in cluster and n2 in cluster for cluster in node_clusters
+        #     )
+        # )
 
         return graph
 

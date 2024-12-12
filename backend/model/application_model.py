@@ -59,17 +59,38 @@ class ApplicationModel:
         with open(file_path, "r") as file:
             return ApplicationModel.from_dict(json.load(file))
 
-    def layout(self):
+    def layout(self) -> "ApplicationModel":
         g = nx.Graph()
         g.add_nodes_from([e.name for e in self.entities])
         g.add_edges_from([(r.source.name, r.target.name) for r in self.relations])
 
         pos = nx.kamada_kawai_layout(g, scale=400)
 
+        new_entities = {}
         for e in self.entities:
             e_pos = pos[e.name]
             assert e_pos.shape == (2,)
-            e.position = Position(x=e_pos[0], y=e_pos[1])
+            entity = Entity(
+                name=e.name,
+                description=e.description,
+                aspect=e.aspect,
+                position=Position(x=e_pos[0], y=e_pos[1]),
+            )
+            new_entities[entity.name] = entity
+
+        new_relations = []
+        for r in self.relations:
+            relation = Relation(
+                name=r.name,
+                description=r.description,
+                source=new_entities[r.source.name],
+                target=new_entities[r.target.name],
+            )
+            new_relations.append(relation)
+
+        return ApplicationModel(
+            entities=list(new_entities.values()), relations=new_relations
+        )
 
 
 def get_dummy_application_model() -> ApplicationModel:
@@ -82,7 +103,7 @@ def get_biffls_application_model() -> ApplicationModel:
     CONDITION = Entity(
         name="Condition",
         description="A condition is a specific state or situation that affects how something operates or functions, "
-                    "or it can refer to a requirement that must be met for something else to happen.",
+        "or it can refer to a requirement that must be met for something else to happen.",
         aspect=Aspect(
             name="data",
             text_color=CommonColors.BLACK.value,
@@ -94,7 +115,7 @@ def get_biffls_application_model() -> ApplicationModel:
     WARNING = Entity(
         name="Warning",
         description="A warning is a statement or indication that alerts someone to potential danger, risk, or a "
-                    "problem, advising them to take caution or avoid certain actions.",
+        "problem, advising them to take caution or avoid certain actions.",
         aspect=Aspect(
             name="data",
             text_color=CommonColors.BLACK.value,
@@ -128,8 +149,8 @@ def get_biffls_application_model() -> ApplicationModel:
     PRODUCT = Entity(
         name="Product",
         description="A product refers to any material or item that serves as an input to be processed or transformed, "
-                    "as well as the output or finished result that comes from the process. It can include raw "
-                    "materials, components, or completed goods.",
+        "as well as the output or finished result that comes from the process. It can include raw "
+        "materials, components, or completed goods.",
         aspect=Aspect(
             name="operational",
             text_color=CommonColors.BLACK.value,
@@ -145,10 +166,10 @@ def get_biffls_application_model() -> ApplicationModel:
 
 
 def get_random_position(
-        x_lower: float = 0.0,
-        x_upper: float = 10.0,
-        y_lower: float = 0.0,
-        y_upper: float = 10.0,
+    x_lower: float = 0.0,
+    x_upper: float = 10.0,
+    y_lower: float = 0.0,
+    y_upper: float = 10.0,
 ) -> Position:
     return Position(
         x=random.uniform(x_lower, x_upper), y=random.uniform(y_lower, y_upper)
@@ -200,16 +221,16 @@ def create_dummy_relations() -> typing.List[Relation]:
     task_require_tool = Relation(
         name="task_requires_tool",
         description="A task_require_tool relation indicates that a specific task cannot be "
-                    "completed without the use of a particular tool. This relation defines "
-                    "the dependency between the task and the tool required to perform it.",
+        "completed without the use of a particular tool. This relation defines "
+        "the dependency between the task and the tool required to perform it.",
         source=TASK,
         target=TOOL,
     )
     actor_performs_task = Relation(
         name="actor_performs_task",
         description="The actor_performs_task relation specifies that an actor (a person, "
-                    "group, or system) is responsible for carrying out or executing a "
-                    "particular task. This relation identifies who is performing the task.",
+        "group, or system) is responsible for carrying out or executing a "
+        "particular task. This relation identifies who is performing the task.",
         source=ACTOR,
         target=TASK,
     )

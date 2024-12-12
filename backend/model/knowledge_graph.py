@@ -1,11 +1,45 @@
 import dataclasses
+import difflib
 import json
 import typing
 from pathlib import Path
 
 import networkx as nx
+import nltk
 
 from model import meta_model
+
+
+def node_match(threshold: float = 0.6):
+    def match(n1, n2) -> float:
+        if n1["type"].lower() != n2["type"].lower():
+            return False
+
+        n1_tokens = [t.lower() for t in nltk.word_tokenize(n1["name"])]
+        n2_tokens = [t.lower() for t in nltk.word_tokenize(n2["name"])]
+        sim = difflib.SequenceMatcher(None, n1_tokens, n2_tokens).ratio()
+        is_matching = sim > threshold
+        return is_matching
+
+    return match
+
+
+def edge_match(e1, e2):
+    if e1["type"].lower() == e2["type"].lower():
+        return True
+    return False
+
+
+def should_merge(
+    c1: typing.List["Node"],
+    c2: typing.List["Node"],
+    match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]],
+) -> bool:
+    for n1 in c1:
+        for n2 in c2:
+            if match_node(n1, n2):
+                return True
+    return False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -16,40 +50,68 @@ class Graph:
     def compact(
         self,
         *,
-        match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]],
-        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]],
+        match_node: typing.Optional[typing.Callable[["Node", "Node"], bool]] = None,
+        match_edge: typing.Optional[typing.Callable[["Edge", "Edge"], bool]] = None,
     ) -> "Graph":
         new_nodes = []
         new_edges = []
 
-        node_mappings: typing.Dict[Node, Node] = {}
+        node_mappings: typing.Dict[str, Node] = {}
 
-        for node in self.nodes:
-            found_match = False
-            for other in new_nodes:
-                if match_node(node, other):
-                    found_match = True
-                    node_mappings[node] = other
-                    break
-            if not found_match:
+        if match_node is not None:
+            un_merged_clusters = [[n] for n in self.nodes]
+            merged_clusters = []
+
+            while len(un_merged_clusters) > 0:
+                cluster = un_merged_clusters.pop(0)
+                clusters_to_merge = []
+                for other in un_merged_clusters:
+                    if should_merge(cluster, other, match_node):
+                        clusters_to_merge.append(other)
+                for other in clusters_to_merge:
+                    un_merged_clusters.remove(other)
+                    cluster += other
+                merged_clusters.append(cluster)
+
+            for cluster in merged_clusters:
+                n: Node
+                cluster = sorted(cluster, key=lambda n: len(n.name), reverse=True)
+                representative = cluster[0]
+                new_nodes.append(representative)
+                for n in cluster:
+                    node_mappings[n.id] = representative
+                print([n.name for n in cluster])
+        else:
+            for node in self.nodes:
                 new_nodes.append(node)
-                node_mappings[node] = node
+                node_mappings[node.id] = node
 
-        for edge in self.edges:
-            edge = Edge(
-                id=edge.id,
-                source=node_mappings[edge.source],
-                target=node_mappings[edge.target],
-                type=edge.type,
-            )
+        if match_edge is not None:
+            for edge in self.edges:
+                edge = Edge(
+                    id=edge.id,
+                    source=node_mappings[edge.source.id],
+                    target=node_mappings[edge.target.id],
+                    type=edge.type,
+                )
 
-            found_match = False
-            for other in new_edges:
-                if match_edge(edge, other):
-                    found_match = True
-                    break
-            if not found_match:
-                new_edges.append(edge)
+                found_match = False
+                for other in new_edges:
+                    if match_edge(edge, other):
+                        found_match = True
+                        break
+                if not found_match:
+                    new_edges.append(edge)
+        else:
+            for edge in self.edges:
+                new_edges.append(
+                    Edge(
+                        id=edge.id,
+                        source=node_mappings[edge.source.id],
+                        target=node_mappings[edge.target.id],
+                        type=edge.type,
+                    )
+                )
 
         return Graph(new_nodes, new_edges)
 
@@ -110,11 +172,19 @@ class Graph:
                 updated_nodes.append(n)
         return Graph(nodes=updated_nodes, edges=updated_edges)
 
-    def layout(self) -> "Graph":
+    def to_nx(self) -> nx.Graph:
         g = nx.Graph()
-        g.add_nodes_from([n.id for n in self.nodes])
-        g.add_edges_from([(r.source.id, r.target.id) for r in self.edges])
+        g.add_nodes_from(
+            (n.id, {"name": n.name, "type": n.entity.name, "id": n.id})
+            for n in self.nodes
+        )
+        g.add_edges_from(
+            (r.source.id, r.target.id, {"type": r.type}) for r in self.edges
+        )
+        return g
 
+    def layout(self) -> "Graph":
+        g = self.to_nx()
         pos = nx.kamada_kawai_layout(g, scale=500)
 
         knowledge_graph = self
@@ -126,6 +196,20 @@ class Graph:
                 n.with_position(pos_as_tuple)
             )
         return knowledge_graph
+
+    def graph_edit_distance(
+        self, other: "Graph", timeout_seconds: float = 60 * 2
+    ) -> float:
+        g1 = self.to_nx()
+        g2 = other.to_nx()
+
+        return nx.graph_edit_distance(
+            g1,
+            g2,
+            node_match=node_match(threshold=0.6),
+            edge_match=edge_match,
+            timeout=timeout_seconds,
+        )
 
 
 @dataclasses.dataclass(frozen=True, eq=True)

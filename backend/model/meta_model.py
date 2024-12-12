@@ -4,7 +4,7 @@ from model.color import Color
 from model.shape import Shape
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=True)
 class ExtractableElement:
     name: str
     description: str
@@ -23,7 +23,7 @@ class ExtractableElement:
         )
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=True)
 class Aspect:
     name: str
     text_color: Color
@@ -48,7 +48,7 @@ class Aspect:
         )
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=True)
 class Position:
     x: float
     y: float
@@ -61,7 +61,7 @@ class Position:
         return Position(x=d["x"], y=d["y"])
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=True)
 class Entity(ExtractableElement):
     aspect: Aspect
     position: Position
@@ -82,7 +82,7 @@ class Entity(ExtractableElement):
         )
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=True)
 class Relation(ExtractableElement):
     source: Entity
     target: Entity

@@ -1,6 +1,4 @@
-import collections
 import dataclasses
-import difflib
 import json
 import pathlib
 import re
@@ -11,18 +9,17 @@ import nltk
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+import model.knowledge_graph as kg
 from evaluation.groundtruth_parser import (
     parse_manual_annotated_file,
 )
-from model.knowledge_graph import Graph
+from model import match
 
 
 @dataclasses.dataclass
 class MatchNode:
     text: str
     type: str
-    page: int
-    file: str
 
 
 @dataclasses.dataclass
@@ -37,16 +34,6 @@ class Match:
     similarity: float
 
 
-def char_similarity(s1: str, s2: str) -> float:
-    return difflib.SequenceMatcher(None, s1, s2).ratio()
-
-
-def token_similarity(s1: str, s2: str) -> float:
-    tokens_1 = nltk.tokenize.word_tokenize(s1)
-    tokens_2 = nltk.tokenize.word_tokenize(s2)
-    return difflib.SequenceMatcher(None, tokens_1, tokens_2).ratio()
-
-
 @dataclasses.dataclass
 class MatchResult:
     matches: typing.List[Match]
@@ -55,10 +42,18 @@ class MatchResult:
 
 
 def optimal_matching(
-    predictions: typing.List[MatchNode],
-    ground_truth: typing.List[MatchNode],
-    similarity_dict: dict,
+    predicted_graph: kg.Graph,
+    reference_graph: kg.Graph,
 ) -> typing.List[Match]:
+    predictions = [
+        MatchNode(text=n.name, type=n.entity.name) for n in predicted_graph.nodes
+    ]
+    ground_truth = [
+        MatchNode(text=n.name, type=n.entity.name) for n in reference_graph.nodes
+    ]
+
+    similarity_dict = get_similarity_dictionary(predicted_graph, reference_graph)
+
     len_extracted = len(predictions)
     len_ground_truth = len(ground_truth)
 
@@ -102,16 +97,25 @@ def optimal_matching(
 
 
 def get_similarity_dictionary(
-    extracted_mentions: typing.List[MatchNode],
-    ground_truth_mentions: typing.List[MatchNode],
+    predicted_graph: kg.Graph,
+    reference_graph: kg.Graph,
 ) -> dict:
     similarities = defaultdict(dict)
 
-    for extracted_mention in extracted_mentions:
+    predictions = [
+        MatchNode(text=n.name, type=n.entity.name) for n in predicted_graph.nodes
+    ]
+    ground_truth = [
+        MatchNode(text=n.name, type=n.entity.name) for n in reference_graph.nodes
+    ]
+
+    for extracted_mention in predictions:
         extracted_name = extracted_mention.text
-        for ground_truth_mention in ground_truth_mentions:
+        for ground_truth_mention in ground_truth:
             ground_truth_name = ground_truth_mention.text
-            similarity = token_similarity(extracted_name, ground_truth_name)
+            similarity = match.overlap_similarity(
+                extracted_name, ground_truth_name, ignored_pos_tags=["det"]
+            )
             similarities[extracted_name][ground_truth_name] = similarity
 
     return dict(similarities)
@@ -151,34 +155,101 @@ def print_matches(matches: typing.List[Match]):
             print(f"True: ---")
 
 
-Stats = collections.namedtuple("Stats", ["num_ok", "num_wrong", "num_gold", "num_pred"])
+@dataclasses.dataclass
+class Stats:
+    num_ok: float
+    num_wrong: float
+    num_gold: float
+    num_pred: float
+
+    @property
+    def recall(self):
+        if self.num_gold == 0:
+            if self.num_ok == 0:
+                return 1.0
+            return 0.0
+        return self.num_ok / self.num_gold
+
+    @property
+    def precision(self):
+        if self.num_pred == 0:
+            if self.num_ok == 0:
+                return 1.0
+            return 0.0
+        return self.num_ok / self.num_pred
+
+    @property
+    def f1(self):
+        p = self.precision
+        r = self.recall
+        if p + r == 0:
+            return 0.0
+        return 2 * p * r / (p + r)
+
+    def f_beta(self, beta: float):
+        assert beta > 0
+        p = self.precision
+        r = self.recall
+        numerator = (p * beta**2) + r
+        if numerator == 0:
+            return 0.0
+        return (1 + beta**2) * p * r / numerator
 
 
 def get_stats(
     *,
-    predictions: typing.List[MatchNode],
-    ground_truth: typing.List[MatchNode],
-    matches: typing.List[Match],
+    predicted_graph: kg.Graph,
+    reference_graph: kg.Graph,
     threshold: float = 0.4,
+    verbose: bool = False,
 ) -> Stats:
+    predictions = [
+        MatchNode(text=n.name, type=n.entity.name) for n in predicted_graph.nodes
+    ]
+    ground_truth = [
+        MatchNode(text=n.name, type=n.entity.name) for n in reference_graph.nodes
+    ]
+
+    matches = optimal_matching(predicted_graph, reference_graph)
+
     num_gold = len(ground_truth)
     num_pred = len(predictions)
     num_ok = 0
     non_ok = 0
 
-    for match in matches:
-        if match.prediction is None or match.ground_truth is None:
+    for m in matches:
+        if m.prediction is None:
+            if verbose:
+                print(f"MISSING | {m.ground_truth.text}")
             non_ok += 1
             continue
 
-        if match.prediction.type != match.ground_truth.type:
+        if m.ground_truth is None:
+            if verbose:
+                print(f"ADDITIONAL | {m.prediction.text}")
             non_ok += 1
             continue
 
-        if match.similarity < threshold:
+        if m.similarity < threshold:
+            if verbose:
+                print(
+                    f"TEXT | ({m.similarity:.2f}) - {m.ground_truth.text} ({m.ground_truth.type}) - "
+                    f"{m.prediction.text} ({m.prediction.type})"
+                )
             non_ok += 1
             continue
 
+        if m.prediction.type.lower() != m.ground_truth.type.lower():
+            if verbose:
+                print(
+                    f"TYPE | {m.ground_truth.text} ({m.ground_truth.type}) - "
+                    f"{m.prediction.text} ({m.prediction.type})"
+                )
+            non_ok += 1
+            continue
+
+        if verbose:
+            print(f"OK | {m.ground_truth.text} - {m.prediction.text}")
         num_ok += 1
 
     return Stats(num_ok=num_ok, num_wrong=non_ok, num_gold=num_gold, num_pred=num_pred)
@@ -190,9 +261,9 @@ if __name__ == "__main__":
         nltk.download("punkt_tab")
 
         ground_truth_path = (
-            pathlib.Path(__file__).parent.parent.absolute() / "res" / "ground_truth.csv"
+            pathlib.Path(__file__).parent.parent.absolute() / "res" / "ground_truth_simple.csv"
         )
-        ground_truth_nodes = parse_manual_annotated_file(file_path=ground_truth_path)
+        ground_truth = parse_manual_annotated_file(file_path=ground_truth_path)
 
         knowledge_graph_path = (
             pathlib.Path(__file__).parent.parent.absolute()
@@ -202,20 +273,9 @@ if __name__ == "__main__":
             / "simple.json"
         )
         with open(knowledge_graph_path, "r") as file:
-            graph = Graph.from_dict(json.load(file))
+            graph = kg.Graph.from_dict(json.load(file))
 
-        predictions = [
-            MatchNode(text=n.name, type=n.entity.name, page=0, file="")
-            for n in graph.nodes
-        ]
-        ground_truth = [
-            MatchNode(text=n.name, type=n.entity, page=0, file="")
-            for n in ground_truth_nodes
-        ]
-
-        sim_dict = get_similarity_dictionary(predictions.copy(), ground_truth.copy())
-
-        matches = optimal_matching(predictions.copy(), ground_truth.copy(), sim_dict)
+        matches = optimal_matching(graph, ground_truth)
 
         match_threshold = 0.8
         ok_matches = [m for m in matches if m.similarity > match_threshold]
@@ -233,23 +293,21 @@ if __name__ == "__main__":
         print(f"### = 0.0 #####################################")
         print_matches([m for m in matches if m.similarity == 0.0])
 
-        num_ok, num_wrong, num_gold, num_pred = get_stats(
-            predictions=predictions.copy(),
-            ground_truth=ground_truth.copy(),
-            matches=matches,
+        stats = get_stats(
+            predicted_graph=graph,
+            reference_graph=ground_truth,
         )
 
-        precision = num_ok / num_pred if num_pred > 0 else 0.0
-        recall = num_ok / num_gold if num_gold > 0 else 0.0
-        f1 = calculate_f1_score(precision=precision, recall=recall)
-
-        print()
-        print(f"Ok: {num_ok}, pred: {num_pred}, gold: {num_gold}")
+        precision = stats.precision
+        recall = stats.recall
+        f1 = stats.f1
+        f2 = stats.f_beta(2)
 
         print()
         print()
         print(f"Precision:  {precision:.2%}")
         print(f"Recall:     {recall:.2%}")
         print(f"F1-Score:   {f1:.2%}")
+        print(f"F2-Score:   {f2:.2%}")
 
     main()
