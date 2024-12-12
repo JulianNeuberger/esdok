@@ -27,14 +27,15 @@ export interface KnowledgeGraph {
 }
 
 export class KnowledgeGraphService {
+    private backendHost = process.env.REACT_APP_BACKEND_HOST;
 
     public listGraphs = async (): Promise<string[]> => {
-        const response = await fetch(` http://127.0.0.1:5000/graph/`);
+        const response = await fetch(`${this.backendHost}/graph/`);
         return response.json();
     }
 
     public load = async (metaModel: string): Promise<KnowledgeGraph | undefined> => {
-        const response = await fetch(` http://127.0.0.1:5000/graph/${metaModel}/`, {
+        const response = await fetch(`${this.backendHost}/graph/${metaModel}/`, {
             method: "GET"
         });
         const json = await response.json();
@@ -52,7 +53,7 @@ export class KnowledgeGraphService {
         data.append("file", file);
         data.append("metaModel", metaModel);
 
-        const response = await fetch(" http://127.0.0.1:5000/graph/extract/", {
+        const response = await fetch(`${this.backendHost}/extract/`, {
             method: "POST",
             body: data
         });
@@ -62,7 +63,7 @@ export class KnowledgeGraphService {
     }
 
     public layout = async (metaModel: string) => {
-        const response = await fetch(` http://127.0.0.1:5000/graph/${metaModel}/layout/`, {
+        const response = await fetch(`${this.backendHost}/graph/${metaModel}/layout/`, {
             method: "GET",
         });
         const json = await response.json();
@@ -70,7 +71,7 @@ export class KnowledgeGraphService {
     }
 
     public delete = async (metaModel: string) => {
-        await fetch(`http://127.0.0.1:5000/graph/${metaModel}/`, {
+        await fetch(`${this.backendHost}/graph/${metaModel}/`, {
             method: "DELETE"
         });
     }

@@ -35,19 +35,20 @@ export interface MetaModel {
 }
 
 export class MetaModelService {
-
+    private backendHost = process.env.REACT_APP_BACKEND_HOST;
+    
     public listMetaModels = async (): Promise<string[]> => {
-        const response = await fetch(` http://127.0.0.1:5000/model/`);
+        const response = await fetch(`${this.backendHost}/model/`);
         return await response.json();
     }
 
     public loadAspects = async (name: string): Promise<Aspect[]> => {
-        const response = await fetch(` http://127.0.0.1:5000/model/${name}/aspects`);
+        const response = await fetch(`${this.backendHost}/model/${name}/aspects`);
         return await response.json();
     }
 
     public patchModel = async (name: string, entities: Entity[], relations: Relation[]): Promise<boolean> => {
-        const response = await fetch(`http://127.0.0.1:5000/model/${name}/`, {
+        const response = await fetch(`${this.backendHost}/model/${name}/`, {
             method: "PATCH",
             body: JSON.stringify({
                 "entities": entities,
@@ -63,7 +64,7 @@ export class MetaModelService {
     }
 
     public loadModel = async (name: string): Promise<MetaModel | undefined> => {
-        const response = await fetch(`http://127.0.0.1:5000/model/${name}/`);
+        const response = await fetch(`${this.backendHost}/model/${name}/`);
         const json = await response.json();
         if(!Object.hasOwn(json, "entities")) {
             return undefined;
@@ -78,7 +79,7 @@ export class MetaModelService {
         const data = new FormData();
         data.append("file", file);
 
-        const response = await fetch(` http://127.0.0.1:5000/model/${name}/extract`, {
+        const response = await fetch(`${this.backendHost}/model/${name}/extract`, {
             method: "POST",
             body: data
         });
