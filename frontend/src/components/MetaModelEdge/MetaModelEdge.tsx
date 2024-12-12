@@ -69,9 +69,16 @@ const MetaModelEdge: FC<EdgeProps<Edge<{ relation: Relation, persisted: boolean,
                     <Button
                         type={"primary"}
                         onClick={async () => {
-                            if(!data?.metaModel) return;
+                            console.log("saving")
+                            if(!data?.metaModel) {
+                                console.log(data)
+                                return
+                            };
+                            console.log("has meta model")
                             if(!relation) return;
+                            console.log("has relation saving...")
                             setIsLoading(true);
+                            console.log(relation)
                             await metaModelService.patchModel(data.metaModel, [], [relation])
                             setIsLoading(false);
                         }}

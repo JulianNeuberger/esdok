@@ -1,7 +1,7 @@
 import React from "react";
 import {Background, Controls, Edge, Node, ReactFlow, useEdgesState, useNodesState} from "@xyflow/react";
-import {Aspect, Entity, MetaModelService, Relation} from "../../services/metaModelService";
-import {Button, Spin} from "antd";
+import {Aspect, Entity, MetaModelService, Relation, MetaModel as MM} from "../../services/metaModelService";
+import {Button, Select, Spin} from "antd";
 import EntityInput from "../EntityInput/EntityInput";
 import RelationInput from "../RelationInput/RelationInput";
 import MetaModelEdge from "../MetaModelEdge/MetaModelEdge";
@@ -43,7 +43,7 @@ const MetaModel = () => {
         if(!selectedModel) return;
 
         setIsLoading(true);
-        let modelData;
+        let modelData: MM | undefined;
         let aspectData: Aspect[];
         try {
             modelData = await metaModelService.loadModel(selectedModel);
@@ -67,7 +67,8 @@ const MetaModel = () => {
                 data: {
                     label: e.name,
                     entity: e,
-                    aspects: aspectData
+                    aspects: aspectData,
+                    metaModel: selectedModel
                 },
                 dragHandle: ".name",
                 type: "meta-model-node"
@@ -81,11 +82,14 @@ const MetaModel = () => {
                 data: {
                     label: r.name,
                     relation: r,
-                    persisted: true
+                    persisted: true,
+                    metaModel: selectedModel
                 },
                 type: "meta-model-edge"
             };
         });
+
+        console.log(relationEdges)
 
         setEntities(modelData.entities);
         setNodes(entityNodes);
@@ -150,7 +154,8 @@ const MetaModel = () => {
                             data: {
                                 label: "",
                                 relation: newRelation,
-                                persisted: false
+                                persisted: false,
+                                metaModel: selectedModel
                             },
                             type: "meta-model-edge"
                         }]);
@@ -206,6 +211,20 @@ const MetaModel = () => {
         );
     }
 
+    const renderModelSelect = () => {
+        return (
+            <Select value={selectedModel} onChange={setSelectedModel}>
+                {
+                    metaModels.map(m => {
+                        return (
+                            <Select.Option value={m}>{m}</Select.Option>
+                        );
+                    })
+                }
+            </Select>
+        );
+    }
+
     const patchModel = (entities: Entity[], relations: Relation[]) => {
         if(!selectedModel) return;
         return metaModelService.patchModel(selectedModel, entities, relations);
@@ -214,6 +233,9 @@ const MetaModel = () => {
     const renderNewNodeModal = () => {
         return (
             <div style={{position: "absolute", top: 5, right: 5, width: 250, }}>
+                <div>
+                    {renderModelSelect()}
+                </div>
                 <div>
                     {renderFileUpload()}
                 </div>
