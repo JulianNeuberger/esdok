@@ -10,7 +10,7 @@ import KnowledgeGraphView from "./views/KnowledgeGraphView";
 
 function App() {
   return (
-      <BrowserRouter>
+      <BrowserRouter basename={process.env.PUBLIC_URL}>
           <Routes>
               <Route path={"/"} element={<KnowledgeGraphView />} />
               <Route path={"/model"} element={<MetaModel />} />
