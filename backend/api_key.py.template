@@ -1,7 +1,0 @@
-import os
-
-def set_llm_api_key(model: str) -> None:
-    if 'gpt' in model:
-        os.environ["OPENAI_API_KEY"] = "<YOUR OPEN AI KEY HERE>"
-    else:
-        raise ValueError(f'No API Key for model with name {model}')

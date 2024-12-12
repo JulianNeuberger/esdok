@@ -1,0 +1,9 @@
+res/answers
+res/experiments
+res/files
+res/requests
+
+res/ground_truth.csv
+res/ground_truth.xlsx
+res/ground_truth_simple.csv
+res/ground_truth_simple.xlsx

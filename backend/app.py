@@ -1,18 +1,22 @@
 import os
 import pathlib
+import typing
 
 import flask
+from dotenv import load_dotenv
 from flask import Flask, request
 from flask_cors import CORS
 
 import model.knowledge_graph as kg
+import model.meta_model as mm
 from model import match
 from model.application_model import ApplicationModel
-from model.meta_model import Entity, Relation
 from parser.parse import parse_xml_file
 from pipeline.llm_models import Models
 from pipeline.steps.file_loader import FileLoader
 from pipeline.steps.step import PromptCreation
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -20,15 +24,15 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 application_models_directory = (
     pathlib.Path(__file__).parent.absolute() / "res" / "result" / "application-models"
 )
-application_models_directory.mkdir(exist_ok=True)
+application_models_directory.mkdir(exist_ok=True, parents=True)
 
 model_instances_directory = (
     pathlib.Path(__file__).parent.absolute() / "res" / "result" / "model-instances"
 )
-model_instances_directory.mkdir(exist_ok=True)
+model_instances_directory.mkdir(exist_ok=True, parents=True)
 
 files_directory = pathlib.Path(__file__).parent.absolute() / "res" / "files"
-files_directory.mkdir(exist_ok=True)
+files_directory.mkdir(exist_ok=True, parents=True)
 
 
 @app.route("/graph/", methods=["GET"])
@@ -103,7 +107,9 @@ def extract_knowledge_graph():
         graph = existing_graph.merge(
             graph,
             match_edge=match.strict_edge_matcher,
-            match_node=match.node_similarity_matcher(similarity_threshold=0.8),
+            match_node=match.node_matcher(
+                text_matcher=match.char_similarity, similarity_threshold=0.8
+            ),
         )
 
     graph = graph.layout()
@@ -131,54 +137,45 @@ def list_meta_models():
     return [name for name, ext in meta_models if ext == ".json"]
 
 
-@app.route("/model/<name>", methods=["GET"])
+@app.route("/model/<name>/", methods=["GET"])
 def load_meta_model(name: str):
     application_model_path = application_models_directory / f"{name}.json"
+    print(application_model_path.absolute().__str__())
     if not os.path.isfile(application_model_path):
         flask.abort(404)
     return ApplicationModel.load(application_model_path).to_dict()
 
 
-@app.route("/model/<name>", methods=["PATCH"])
+@app.route("/model/<name>/", methods=["PATCH"])
 def patch_meta_model(name: str):
+    print("....")
+
     new_elements = request.json
+
+    print(new_elements)
 
     application_model_path = application_models_directory / f"{name}.json"
     application_model = ApplicationModel.load(application_model_path)
 
+    entities: typing.Dict[str, mm.Entity] = {
+        e.name: e for e in application_model.entities
+    }
     for e in new_elements["entities"]:
-        entity = Entity.from_dict(e)
-        is_new = True
-        for other in application_model.entities:
-            if other.name == entity.name:
-                other.description = entity.description
-                other.aspect = entity.aspect
-                other.position = entity.position
-                is_new = False
-                break
-        if is_new:
-            application_model.entities.append(entity)
+        entity = mm.Entity.from_dict(e)
+        entities[entity.name] = entity
 
+    relations: typing.Dict[str, mm.Relation] = {
+        r.name: r for r in application_model.relations
+    }
     for r in new_elements["relations"]:
-        relation = Relation.from_dict(r)
-        is_new = True
-        for other in application_model.relations:
-            if other.name == relation.name:
-                other.description = relation.description
-                other.source = application_model.get_entity_by_name(
-                    relation.source.name
-                )
-                other.target = application_model.get_entity_by_name(
-                    relation.target.name
-                )
-                is_new = False
-                print(f"Patched relation: {other.to_dict()}")
-                break
-        if is_new:
-            print("Added new relation")
-            application_model.relations.append(relation)
+        relation = mm.Relation.from_dict(r)
+        relations[relation.name] = relation
 
-    application_model.layout()
+    application_model = ApplicationModel(
+        list(entities.values()), list(relations.values())
+    )
+
+    application_model = application_model.layout()
     application_model.save(application_model_path)
 
     return {

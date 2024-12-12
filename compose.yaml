@@ -1,0 +1,14 @@
+name: esdok
+services:
+  backend:
+    build: backend/
+    volumes:
+      - /app/res/
+    ports:
+      - 5000:5000
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+  frontend:
+    build: frontend/
+    ports:
+      - 3000:80
