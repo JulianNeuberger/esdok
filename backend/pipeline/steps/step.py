@@ -400,9 +400,9 @@ class PromptCreation(BasePipelineStep):
         if current_graph is not None:
             all_nodes += current_graph.nodes
 
-        # node_clusters = self.resolve_entities_from_file(
-        #     model=model, entities=all_nodes, parsed_file=parsed_file
-        # )
+        node_clusters = self.resolve_entities_from_file(
+            model=model, entities=all_nodes, parsed_file=parsed_file
+        )
 
         extracted_relations = self.extract_relations_from_file(
             model=model,
@@ -429,11 +429,11 @@ class PromptCreation(BasePipelineStep):
             edges=edges,
         )
 
-        # graph = graph.compact(
-        #     match_node=lambda n1, n2: any(
-        #         n1 in cluster and n2 in cluster for cluster in node_clusters
-        #     )
-        # )
+        graph = graph.compact(
+            match_node=lambda n1, n2: any(
+                n1 in cluster and n2 in cluster for cluster in node_clusters
+            )
+        )
 
         return graph
 
