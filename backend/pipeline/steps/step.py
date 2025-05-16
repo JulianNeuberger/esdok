@@ -190,7 +190,7 @@ class PromptCreation(BasePipelineStep):
         )
 
         prompts_dir = (
-            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests"
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests" / "mentions"
         )
         prompts_dir.mkdir(exist_ok=True, parents=True)
         prompt = prompt_template.invoke(
@@ -224,7 +224,7 @@ class PromptCreation(BasePipelineStep):
         )
 
         answers_dir = (
-            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers"
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers" / "mentions"
         )
         answers_dir.mkdir(exist_ok=True)
 
@@ -257,7 +257,7 @@ class PromptCreation(BasePipelineStep):
 
         date_formatted = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         prompts_dir = (
-            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests"
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests" / "entities"
         )
         prompts_dir.mkdir(exist_ok=True, parents=True)
 
@@ -297,7 +297,7 @@ class PromptCreation(BasePipelineStep):
         )
 
         answers_dir = (
-            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers"
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers" / "entities"
         )
         answers_dir.mkdir(exist_ok=True)
 
@@ -336,7 +336,7 @@ class PromptCreation(BasePipelineStep):
         )
 
         prompts_dir = (
-            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests"
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "requests" / "relations"
         )
         prompts_dir.mkdir(exist_ok=True, parents=True)
         prompt = prompt_template.invoke(
@@ -373,7 +373,7 @@ class PromptCreation(BasePipelineStep):
         )
 
         answers_dir = (
-            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers"
+            pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers" / "relations"
         )
         answers_dir.mkdir(exist_ok=True)
 
