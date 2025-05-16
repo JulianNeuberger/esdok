@@ -226,7 +226,7 @@ class PromptCreation(BasePipelineStep):
         answers_dir = (
             pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers" / "mentions"
         )
-        answers_dir.mkdir(exist_ok=True)
+        answers_dir.mkdir(exist_ok=True, parents=True)
 
         with open(answers_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
             f.write(chat_result)
@@ -299,7 +299,7 @@ class PromptCreation(BasePipelineStep):
         answers_dir = (
             pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers" / "entities"
         )
-        answers_dir.mkdir(exist_ok=True)
+        answers_dir.mkdir(exist_ok=True, parents=True)
 
         with open(answers_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
             f.write(chat_result)
@@ -375,7 +375,7 @@ class PromptCreation(BasePipelineStep):
         answers_dir = (
             pathlib.Path(__file__).parent.parent.parent.absolute() / "res" / "answers" / "relations"
         )
-        answers_dir.mkdir(exist_ok=True)
+        answers_dir.mkdir(exist_ok=True, parents=True)
 
         with open(answers_dir / f"{date_formatted}.txt", "w", encoding="utf8") as f:
             f.write(chat_result)
