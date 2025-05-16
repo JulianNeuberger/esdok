@@ -53,7 +53,7 @@ export class KnowledgeGraphService {
         data.append("file", file);
         data.append("metaModel", metaModel);
 
-        const response = await fetch(`${this.backendHost}/extract/`, {
+        const response = await fetch(`${this.backendHost}/graph/extract/`, {
             method: "POST",
             body: data
         });
