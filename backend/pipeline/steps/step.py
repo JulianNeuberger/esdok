@@ -400,9 +400,9 @@ class PromptCreation(BasePipelineStep):
         if current_graph is not None:
             all_nodes += current_graph.nodes
 
-        node_clusters = self.resolve_entities_from_file(
-            model=model, entities=all_nodes, parsed_file=parsed_file
-        )
+        # node_clusters = self.resolve_entities_from_file(
+        #     model=model, entities=all_nodes, parsed_file=parsed_file
+        # )
 
         extracted_relations = self.extract_relations_from_file(
             model=model,
